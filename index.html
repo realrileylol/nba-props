@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broadcaster Word Odds & Historical Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans leading-relaxed">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">NBA Broadcaster Word Research & ROI Tracker</h1>
+            <p class="text-slate-500 max-w-2xl mx-auto">Tracking historical settlements alongside fresh market lines for upcoming game broadcasts.</p>
+            <div class="mt-6 flex justify-center gap-4">
+                <span class="px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-xs font-semibold uppercase">Mike Breen</span>
+                <span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold uppercase">Richard Jefferson</span>
+                <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold uppercase">Tim Legler</span>
+            </div>
+        </header>
+
+        <!-- Section 1: Fresh Market Highlights -->
+        <section class="mb-12">
+            <div class="bg-slate-900 rounded-2xl p-8 shadow-md text-white">
+                <h2 class="text-2xl font-bold text-amber-400 mb-2">New Active Betting Lines Today</h2>
+                <p class="text-slate-400 text-sm mb-6">Current top probability boards pulled from fresh market data feeds.</p>
+                
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
+                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">Injury / Injured</div>
+                        <div class="text-2xl font-mono text-emerald-400">96%</div>
+                        <div class="text-xs text-slate-500 mt-1">Yes -3485 / No +2241</div>
+                    </div>
+                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
+                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">MSG / Madison Square Garden</div>
+                        <div class="text-2xl font-mono text-emerald-400">95% <span class="text-rose-400 text-sm">▼1</span></div>
+                        <div class="text-xs text-slate-500 mt-1">Yes -2046 / No +1462</div>
+                    </div>
+                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
+                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">Trump</div>
+                        <div class="text-2xl font-mono text-emerald-400">75% <span class="text-rose-400 text-sm">▼6</span></div>
+                        <div class="text-xs text-slate-500 mt-1">Yes -323 / No +265</div>
+                    </div>
+                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
+                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">Spike Lee</div>
+                        <div class="text-2xl font-mono text-emerald-400">82% <span class="text-emerald-400 text-sm">▲5</span></div>
+                        <div class="text-xs text-slate-500 mt-1">Yes -490 / No +295</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Library with Search and Settlement Filters -->
+        <section class="mb-12">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Master Board & Historical Outcomes</h2>
+                    <p class="text-slate-600 text-sm">Search across both new lines and settled results from the previous broadcast window.</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterSettlement('all')" class="px-3 py-1.5 bg-slate-200 text-slate-800 font-medium rounded-lg text-xs hover:bg-slate-300 transition">All Words</button>
+                    <button onclick="filterSettlement('hit')" class="px-3 py-1.5 bg-emerald-100 text-emerald-800 font-bold rounded-lg text-xs hover:bg-emerald-200 transition">Hits Only</button>
+                    <button onclick="filterSettlement('miss')" class="px-3 py-1.5 bg-rose-100 text-rose-800 font-bold rounded-lg text-xs hover:bg-rose-200 transition">Misses Only</button>
+                    <button onclick="filterSettlement('new')" class="px-3 py-1.5 bg-blue-100 text-blue-800 font-bold rounded-lg text-xs hover:bg-blue-200 transition">New Additions</button>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <input type="text" id="wordSearch" onkeyup="filterWords()" placeholder="Filter by word..." class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-amber-500 outline-none">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-[600px] overflow-y-auto custom-scrollbar p-1" id="wordGrid">
+                <!-- Data injected by Javascript -->
+            </div>
+        </section>
+
+        <footer class="mt-16 pt-8 border-t border-slate-200 text-center text-slate-400 text-xs">
+            <p>Prop tracking engine generated from visual sports-book data feeds and settled transcript logs.</p>
+        </footer>
+    </div>
+
+    <script>
+        const masterData = [
+            { word: "Injury / Injured", chance: "96%", change: "", yes: "-3485", no: "+2241", status: "hit", notes: "Settled: Yes" },
+            { word: "MSG / Madison Square Garden", chance: "95%", change: "▼1", yes: "-2046", no: "+1462", status: "new", notes: "Added Today" },
+            { word: "Spike Lee", chance: "82%", change: "▲5", yes: "-490", no: "+295", status: "miss", notes: "Settled: No" },
+            { word: "Alley-oop", chance: "81%", change: "▼2", yes: "-459", no: "+373", status: "hit", notes: "Settled: Yes" },
+            { word: "Draft / Drafted", chance: "80%", change: "▼3", yes: "-382", no: "+279", status: "hit", notes: "Settled: Yes" },
+            { word: "MVP", chance: "79%", change: "▼1", yes: "-382", no: "+312", status: "hit", notes: "Settled: Yes" },
+            { word: "Travel / Travels / Traveled", chance: "78%", change: "▲4", yes: "-382", no: "+265", status: "miss", notes: "Settled: No" },
+            { word: "Clutch", chance: "77%", change: "▼1", yes: "-360", no: "+239", status: "hit", notes: "Settled: Yes (+$3.62)" },
+            { word: "Elbow", chance: "76%", change: "▼2", yes: "-341", no: "+279", status: "miss", notes: "Settled: No" },
+            { word: "Trump", chance: "75%", change: "▼6", yes: "-323", no: "+265", status: "miss", notes: "Settled: No" },
+            { word: "Ankle", chance: "74%", change: "▼16", yes: "-323", no: "+239", status: "hit", notes: "Settled: Yes" },
+            { word: "Momentum", chance: "74%", change: "▼2", yes: "-341", no: "+265", status: "hit", notes: "Settled: Yes" },
+            { word: "Tech / Technical", chance: "70%", change: "", yes: "-251", no: "+207", status: "hit", notes: "Settled: Yes (+$20.20)" },
+            { word: "Overtime", chance: "67%", change: "▲1", yes: "-218", no: "+181", status: "hit", notes: "Settled: Yes" },
+            { word: "Airball / Airballs / Airballed", chance: "66%", change: "▲1", yes: "-209", no: "+173", status: "hit", notes: "Settled: Yes" },
+            { word: "Sweep / Sweeps / Swept", chance: "66%", change: "▼15", yes: "-209", no: "+173", status: "miss", notes: "Settled: No" },
+            { word: "Jordan", chance: "56%", change: "▲5", yes: "-143", no: "+113", status: "miss", notes: "Settled: No" },
+            { word: "Buzzer", chance: "52%", change: "▲5", yes: "-117", no: "-104", status: "miss", notes: "Settled: No (-$19.99)" },
+            { word: "Popovich", chance: "31%", change: "▲1", yes: "+207", no: "-251", status: "miss", notes: "Settled: No" },
+            { word: "Career High", chance: "29%", change: "▲2", yes: "+228", no: "-277", status: "miss", notes: "Settled: No" },
+            { word: "Highlight", chance: "28%", change: "", yes: "+239", no: "-291", status: "miss", notes: "Settled: No" },
+            { word: "Alien", chance: "25%", change: "▼2", yes: "+265", no: "-323", status: "hit", notes: "Settled: Yes" },
+            { word: "Wingspan", chance: "25%", change: "▼2", yes: "+279", no: "-341", status: "miss", notes: "Settled: No (-$18.43)" },
+            { word: "LeBron", chance: "23%", change: "▲3", yes: "+312", no: "-382", status: "miss", notes: "Settled: No (-$4.99)" },
+            { word: "Triple Double", chance: "21%", change: "▼9", yes: "+351", no: "-490", status: "miss", notes: "Settled: No" },
+            { word: "Retire / Retired / Retirement", chance: "18%", change: "▼2", yes: "+425", no: "-525", status: "miss", notes: "Settled: No" },
+            { word: "Kobe", chance: "17%", change: "▲3", yes: "+455", no: "-565", status: "miss", notes: "Settled: No" },
+            { word: "GOAT", chance: "14%", change: "▲2", yes: "+573", no: "-720", status: "miss", notes: "Settled: No" },
+            { word: "Frost Bank", chance: "--", change: "", yes: "O/U 0.5", no: "", status: "hit", notes: "Settled: Yes" }
+        ];
+
+        function renderGrid(data) {
+            const container = document.getElementById('wordGrid');
+            container.innerHTML = '';
+            
+            data.forEach(item => {
+                let statusBadge = '';
+                let borderClass = 'border-slate-200';
+                
+                if (item.status === 'hit') {
+                    statusBadge = `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">HIT ✅</span>`;
+                    borderClass = 'border-emerald-300 bg-emerald-50/20';
+                } else if (item.status === 'miss') {
+                    statusBadge = `<span class="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-bold rounded-full">MISS ❌</span>`;
+                    borderClass = 'border-rose-200 bg-rose-50/10';
+                } else if (item.status === 'new') {
+                    statusBadge = `<span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full">NEW 🔥</span>`;
+                    borderClass = 'border-blue-300 bg-blue-50/30';
+                }
+
+                let changeBadge = '';
+                if (item.change.includes('▲')) {
+                    changeBadge = `<span class="text-emerald-600 font-bold ml-1 text-xs">${item.change}</span>`;
+                } else if (item.change.includes('▼')) {
+                    changeBadge = `<span class="text-rose-500 font-bold ml-1 text-xs">${item.change}</span>`;
+                }
+
+                const card = document.createElement('div');
+                card.className = `bg-white p-4 rounded-xl border ${borderClass} shadow-sm transition-all duration-200 hover:shadow-md`;
+                card.innerHTML = `
+                    <div class="flex flex-col h-full justify-between">
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                ${statusBadge}
+                                <span class="text-xs font-mono font-bold text-slate-500">${item.chance} ${changeBadge}</span>
+                            </div>
+                            <h3 class="font-bold text-slate-800 text-sm md:text-base mb-1 truncate" title="${item.word}">${item.word}</h3>
+                            <p class="text-[11px] text-slate-400 italic mb-4">${item.notes}</p>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
+                            <div class="flex justify-between text-xs font-mono">
+                                <span class="text-emerald-700 font-bold">Yes: ${item.yes}</span>
+                                <span class="text-rose-600 font-bold">${item.no ? 'No: ' + item.no : ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterWords() {
+            const query = document.getElementById('wordSearch').value.toLowerCase();
+            const filtered = masterData.filter(item => item.word.toLowerCase().includes(query));
+            renderGrid(filtered);
+        }
+
+        function filterSettlement(type) {
+            if (type === 'all') {
+                renderGrid(masterData);
+            } else {
+                const filtered = masterData.filter(item => item.status === type);
+                renderGrid(filtered);
+            }
+        }
+
+        // Run on start
+        window.onload = () => {
+            renderGrid(masterData);
+        };
+    </script>
+</body>
+</html>
