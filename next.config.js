@@ -1,11 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'export', // <-- THIS IS THE SILVER BULLET
   typescript: {
-    // This explicitly tells Next.js to ignore all TypeScript errors during builds
     ignoreBuildErrors: true,
   },
   eslint: {
-    // This tells Next.js to ignore linting warnings during builds
     ignoreDuringBuilds: true,
   },
 };
