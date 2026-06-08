@@ -3,200 +3,358 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Broadcaster Word Odds & Historical Tracker</title>
+    <title>NBA Broadcaster Props Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
+        body { background: #080b11; }
+
+        .scrollbar::-webkit-scrollbar { width: 4px; }
+        .scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar::-webkit-scrollbar-thumb { background: #1e2635; border-radius: 4px; }
+
+        .prop-card { transition: border-color 0.15s; }
+        .prop-card:hover { border-color: #334155; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 font-sans leading-relaxed">
+<body class="text-slate-200 font-sans antialiased min-h-screen">
 
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Header -->
-        <header class="mb-12 text-center">
-            <h1 class="text-4xl font-extrabold text-slate-800 mb-2 tracking-tight">NBA Broadcaster Word Research & ROI Tracker</h1>
-            <p class="text-slate-500 max-w-2xl mx-auto">Tracking historical settlements alongside fresh market lines for upcoming game broadcasts.</p>
-            <div class="mt-6 flex justify-center gap-4">
-                <span class="px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-xs font-semibold uppercase">Mike Breen</span>
-                <span class="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold uppercase">Richard Jefferson</span>
-                <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold uppercase">Tim Legler</span>
+    <!-- Header -->
+    <header class="border-b border-slate-800/60 bg-slate-950/90 backdrop-blur-sm sticky top-0 z-10">
+        <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
+            <div>
+                <h1 class="text-base font-black tracking-tight text-white uppercase">NBA Broadcaster Props</h1>
+                <p class="text-[11px] text-slate-500 mt-0.5">2025 NBA Finals · Word Odds Tracker</p>
             </div>
-        </header>
+            <div class="flex gap-1.5 flex-wrap justify-end">
+                <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-md text-[11px] font-semibold tracking-wide">Mike Breen</span>
+                <span class="px-2.5 py-1 bg-amber-950/60 text-amber-300 border border-amber-900/50 rounded-md text-[11px] font-semibold tracking-wide">Richard Jefferson</span>
+                <span class="px-2.5 py-1 bg-blue-950/60 text-blue-300 border border-blue-900/50 rounded-md text-[11px] font-semibold tracking-wide">Tim Legler</span>
+            </div>
+        </div>
+    </header>
 
-        <!-- Section 1: Fresh Market Highlights -->
-        <section class="mb-12">
-            <div class="bg-slate-900 rounded-2xl p-8 shadow-md text-white">
-                <h2 class="text-2xl font-bold text-amber-400 mb-2">New Active Betting Lines Today</h2>
-                <p class="text-slate-400 text-sm mb-6">Current top probability boards pulled from fresh market data feeds.</p>
-                
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
-                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">Injury / Injured</div>
-                        <div class="text-2xl font-mono text-emerald-400">96%</div>
-                        <div class="text-xs text-slate-500 mt-1">Yes -3485 / No +2241</div>
+    <div class="max-w-6xl mx-auto px-4 py-6">
+
+        <!-- Tab Navigation -->
+        <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit">
+            <button onclick="switchTab('g2')" id="tab-g2"
+                class="px-5 py-2 rounded-lg text-sm font-bold transition-all">
+                Game 2 — Board
+            </button>
+            <button onclick="switchTab('g1')" id="tab-g1"
+                class="px-5 py-2 rounded-lg text-sm font-bold transition-all">
+                Game 1 — Results
+            </button>
+        </div>
+
+        <!-- ══════════ GAME 2 VIEW ══════════ -->
+        <div id="view-g2">
+
+            <!-- Top Lines -->
+            <div class="mb-8">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="w-1 h-3.5 bg-amber-400 rounded-full"></span>
+                    <h2 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Top Lines · Game 2</h2>
+                </div>
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="featuredCards"></div>
+            </div>
+
+            <!-- Full Board -->
+            <div>
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1 h-3.5 bg-slate-600 rounded-full"></span>
+                            <h2 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Full Board · Game 2</h2>
+                        </div>
+                        <div id="g2-stats" class="flex gap-2 text-[11px] font-mono"></div>
                     </div>
-                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
-                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">MSG / Madison Square Garden</div>
-                        <div class="text-2xl font-mono text-emerald-400">95% <span class="text-rose-400 text-sm">▼1</span></div>
-                        <div class="text-xs text-slate-500 mt-1">Yes -2046 / No +1462</div>
-                    </div>
-                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
-                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">Trump</div>
-                        <div class="text-2xl font-mono text-emerald-400">75% <span class="text-rose-400 text-sm">▼6</span></div>
-                        <div class="text-xs text-slate-500 mt-1">Yes -323 / No +265</div>
-                    </div>
-                    <div class="p-4 border border-slate-700 rounded-xl bg-slate-800/50">
-                        <div class="text-xs text-slate-400 font-bold uppercase mb-1">Spike Lee</div>
-                        <div class="text-2xl font-mono text-emerald-400">82% <span class="text-emerald-400 text-sm">▲5</span></div>
-                        <div class="text-xs text-slate-500 mt-1">Yes -490 / No +295</div>
+                    <div class="flex gap-1.5 flex-wrap">
+                        <button onclick="filterStatus('all')" id="f-all" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">All</button>
+                        <button onclick="filterStatus('hit')" id="f-hit" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Hits</button>
+                        <button onclick="filterStatus('miss')" id="f-miss" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">Misses</button>
+                        <button onclick="filterStatus('new')" id="f-new" class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">New</button>
                     </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- Section 2: Library with Search and Settlement Filters -->
-        <section class="mb-12">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+                <input type="text" id="searchInput" onkeyup="applyFilters()" placeholder="Search words..."
+                    class="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-amber-500/40 focus:ring-1 focus:ring-amber-500/10 mb-4">
+
+                <div id="propGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[680px] overflow-y-auto scrollbar pr-1">
+                </div>
+            </div>
+        </div>
+
+        <!-- ══════════ GAME 1 VIEW ══════════ -->
+        <div id="view-g1" class="hidden">
+
+            <!-- Summary Stats -->
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-3xl font-black text-green-400">15</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Hits</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-3xl font-black text-red-400">15</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Misses</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-3xl font-black text-amber-400">50%</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Hit Rate</div>
+                </div>
+            </div>
+
+            <!-- Two Column: Hits / Misses -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                    <h2 class="text-2xl font-bold text-slate-800">Master Board & Historical Outcomes</h2>
-                    <p class="text-slate-600 text-sm">Search across both new lines and settled results from the previous broadcast window.</p>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                        <h3 class="text-[11px] font-bold text-green-400 uppercase tracking-widest">Said On Air · Hits</h3>
+                    </div>
+                    <div class="space-y-1.5" id="g1-hits"></div>
                 </div>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="filterSettlement('all')" class="px-3 py-1.5 bg-slate-200 text-slate-800 font-medium rounded-lg text-xs hover:bg-slate-300 transition">All Words</button>
-                    <button onclick="filterSettlement('hit')" class="px-3 py-1.5 bg-emerald-100 text-emerald-800 font-bold rounded-lg text-xs hover:bg-emerald-200 transition">Hits Only</button>
-                    <button onclick="filterSettlement('miss')" class="px-3 py-1.5 bg-rose-100 text-rose-800 font-bold rounded-lg text-xs hover:bg-rose-200 transition">Misses Only</button>
-                    <button onclick="filterSettlement('new')" class="px-3 py-1.5 bg-blue-100 text-blue-800 font-bold rounded-lg text-xs hover:bg-blue-200 transition">New Additions</button>
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                        <h3 class="text-[11px] font-bold text-red-400 uppercase tracking-widest">Not Said · Misses</h3>
+                    </div>
+                    <div class="space-y-1.5" id="g1-misses"></div>
                 </div>
             </div>
+        </div>
 
-            <div class="mb-6">
-                <input type="text" id="wordSearch" onkeyup="filterWords()" placeholder="Filter by word..." class="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-amber-500 outline-none">
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 h-[600px] overflow-y-auto custom-scrollbar p-1" id="wordGrid">
-                <!-- Data injected by Javascript -->
-            </div>
-        </section>
-
-        <footer class="mt-16 pt-8 border-t border-slate-200 text-center text-slate-400 text-xs">
-            <p>Prop tracking engine generated from visual sports-book data feeds and settled transcript logs.</p>
-        </footer>
     </div>
 
+    <footer class="max-w-6xl mx-auto px-4 py-8 mt-8 border-t border-slate-900 text-center text-[11px] text-slate-700">
+        Prop tracking engine built from visual sportsbook data feeds and settled broadcast transcripts.
+    </footer>
+
     <script>
-        const masterData = [
-            { word: "Injury / Injured", chance: "96%", change: "", yes: "-3485", no: "+2241", status: "hit", notes: "Settled: Yes" },
-            { word: "MSG / Madison Square Garden", chance: "95%", change: "▼1", yes: "-2046", no: "+1462", status: "new", notes: "Added Today" },
-            { word: "Spike Lee", chance: "82%", change: "▲5", yes: "-490", no: "+295", status: "miss", notes: "Settled: No" },
-            { word: "Alley-oop", chance: "81%", change: "▼2", yes: "-459", no: "+373", status: "hit", notes: "Settled: Yes" },
-            { word: "Draft / Drafted", chance: "80%", change: "▼3", yes: "-382", no: "+279", status: "hit", notes: "Settled: Yes" },
-            { word: "MVP", chance: "79%", change: "▼1", yes: "-382", no: "+312", status: "hit", notes: "Settled: Yes" },
-            { word: "Travel / Travels / Traveled", chance: "78%", change: "▲4", yes: "-382", no: "+265", status: "miss", notes: "Settled: No" },
-            { word: "Clutch", chance: "77%", change: "▼1", yes: "-360", no: "+239", status: "hit", notes: "Settled: Yes (+$3.62)" },
-            { word: "Elbow", chance: "76%", change: "▼2", yes: "-341", no: "+279", status: "miss", notes: "Settled: No" },
-            { word: "Trump", chance: "75%", change: "▼6", yes: "-323", no: "+265", status: "miss", notes: "Settled: No" },
-            { word: "Ankle", chance: "74%", change: "▼16", yes: "-323", no: "+239", status: "hit", notes: "Settled: Yes" },
-            { word: "Momentum", chance: "74%", change: "▼2", yes: "-341", no: "+265", status: "hit", notes: "Settled: Yes" },
-            { word: "Tech / Technical", chance: "70%", change: "", yes: "-251", no: "+207", status: "hit", notes: "Settled: Yes (+$20.20)" },
-            { word: "Overtime", chance: "67%", change: "▲1", yes: "-218", no: "+181", status: "hit", notes: "Settled: Yes" },
-            { word: "Airball / Airballs / Airballed", chance: "66%", change: "▲1", yes: "-209", no: "+173", status: "hit", notes: "Settled: Yes" },
-            { word: "Sweep / Sweeps / Swept", chance: "66%", change: "▼15", yes: "-209", no: "+173", status: "miss", notes: "Settled: No" },
-            { word: "Jordan", chance: "56%", change: "▲5", yes: "-143", no: "+113", status: "miss", notes: "Settled: No" },
-            { word: "Buzzer", chance: "52%", change: "▲5", yes: "-117", no: "-104", status: "miss", notes: "Settled: No (-$19.99)" },
-            { word: "Popovich", chance: "31%", change: "▲1", yes: "+207", no: "-251", status: "miss", notes: "Settled: No" },
-            { word: "Career High", chance: "29%", change: "▲2", yes: "+228", no: "-277", status: "miss", notes: "Settled: No" },
-            { word: "Highlight", chance: "28%", change: "", yes: "+239", no: "-291", status: "miss", notes: "Settled: No" },
-            { word: "Alien", chance: "25%", change: "▼2", yes: "+265", no: "-323", status: "hit", notes: "Settled: Yes" },
-            { word: "Wingspan", chance: "25%", change: "▼2", yes: "+279", no: "-341", status: "miss", notes: "Settled: No (-$18.43)" },
-            { word: "LeBron", chance: "23%", change: "▲3", yes: "+312", no: "-382", status: "miss", notes: "Settled: No (-$4.99)" },
-            { word: "Triple Double", chance: "21%", change: "▼9", yes: "+351", no: "-490", status: "miss", notes: "Settled: No" },
-            { word: "Retire / Retired / Retirement", chance: "18%", change: "▼2", yes: "+425", no: "-525", status: "miss", notes: "Settled: No" },
-            { word: "Kobe", chance: "17%", change: "▲3", yes: "+455", no: "-565", status: "miss", notes: "Settled: No" },
-            { word: "GOAT", chance: "14%", change: "▲2", yes: "+573", no: "-720", status: "miss", notes: "Settled: No" },
-            { word: "Frost Bank", chance: "--", change: "", yes: "O/U 0.5", no: "", status: "hit", notes: "Settled: Yes" }
+        // ─── DATA ───────────────────────────────────────────────────────────────
+
+        const game2Data = [
+            { word: "Injury / Injured",              chance: 96,   change: "",    yes: "-3485", no: "+2241", status: "hit",  notes: "Settled: Yes" },
+            { word: "MSG / Madison Square Garden",   chance: 95,   change: "▼1",  yes: "-2046", no: "+1462", status: "new",  notes: "Added Today" },
+            { word: "Spike Lee",                     chance: 82,   change: "▲5",  yes: "-490",  no: "+295",  status: "miss", notes: "Settled: No" },
+            { word: "Alley-oop",                     chance: 81,   change: "▼2",  yes: "-459",  no: "+373",  status: "hit",  notes: "Settled: Yes" },
+            { word: "Draft / Drafted",               chance: 80,   change: "▼3",  yes: "-382",  no: "+279",  status: "hit",  notes: "Settled: Yes" },
+            { word: "MVP",                           chance: 79,   change: "▼1",  yes: "-382",  no: "+312",  status: "hit",  notes: "Settled: Yes" },
+            { word: "Travel / Travels / Traveled",   chance: 78,   change: "▲4",  yes: "-382",  no: "+265",  status: "miss", notes: "Settled: No" },
+            { word: "Clutch",                        chance: 77,   change: "▼1",  yes: "-360",  no: "+239",  status: "hit",  notes: "Settled: Yes (+$3.62)" },
+            { word: "Elbow",                         chance: 76,   change: "▼2",  yes: "-341",  no: "+279",  status: "miss", notes: "Settled: No" },
+            { word: "Trump",                         chance: 75,   change: "▼6",  yes: "-323",  no: "+265",  status: "miss", notes: "Settled: No" },
+            { word: "Ankle",                         chance: 74,   change: "▼16", yes: "-323",  no: "+239",  status: "hit",  notes: "Settled: Yes" },
+            { word: "Momentum",                      chance: 74,   change: "▼2",  yes: "-341",  no: "+265",  status: "hit",  notes: "Settled: Yes" },
+            { word: "Tech / Technical",              chance: 70,   change: "",    yes: "-251",  no: "+207",  status: "hit",  notes: "Settled: Yes (+$20.20)" },
+            { word: "Overtime",                      chance: 67,   change: "▲1",  yes: "-218",  no: "+181",  status: "hit",  notes: "Settled: Yes" },
+            { word: "Airball / Airballs / Airballed",chance: 66,   change: "▲1",  yes: "-209",  no: "+173",  status: "hit",  notes: "Settled: Yes" },
+            { word: "Sweep / Sweeps / Swept",        chance: 66,   change: "▼15", yes: "-209",  no: "+173",  status: "miss", notes: "Settled: No" },
+            { word: "Jordan",                        chance: 56,   change: "▲5",  yes: "-143",  no: "+113",  status: "miss", notes: "Settled: No" },
+            { word: "Buzzer",                        chance: 52,   change: "▲5",  yes: "-117",  no: "-104",  status: "miss", notes: "Settled: No (-$19.99)" },
+            { word: "Popovich",                      chance: 31,   change: "▲1",  yes: "+207",  no: "-251",  status: "miss", notes: "Settled: No" },
+            { word: "Career High",                   chance: 29,   change: "▲2",  yes: "+228",  no: "-277",  status: "miss", notes: "Settled: No" },
+            { word: "Highlight",                     chance: 28,   change: "",    yes: "+239",  no: "-291",  status: "miss", notes: "Settled: No" },
+            { word: "Alien",                         chance: 25,   change: "▼2",  yes: "+265",  no: "-323",  status: "hit",  notes: "Settled: Yes" },
+            { word: "Wingspan",                      chance: 25,   change: "▼2",  yes: "+279",  no: "-341",  status: "miss", notes: "Settled: No (-$18.43)" },
+            { word: "LeBron",                        chance: 23,   change: "▲3",  yes: "+312",  no: "-382",  status: "miss", notes: "Settled: No (-$4.99)" },
+            { word: "Triple Double",                 chance: 21,   change: "▼9",  yes: "+351",  no: "-490",  status: "miss", notes: "Settled: No" },
+            { word: "Retire / Retired / Retirement", chance: 18,   change: "▼2",  yes: "+425",  no: "-525",  status: "miss", notes: "Settled: No" },
+            { word: "Kobe",                          chance: 17,   change: "▲3",  yes: "+455",  no: "-565",  status: "miss", notes: "Settled: No" },
+            { word: "GOAT",                          chance: 14,   change: "▲2",  yes: "+573",  no: "-720",  status: "miss", notes: "Settled: No" },
+            { word: "Frost Bank",                    chance: null, change: "",    yes: "O/U 0.5", no: "",    status: "hit",  notes: "Settled: Yes" },
         ];
 
-        function renderGrid(data) {
-            const container = document.getElementById('wordGrid');
-            container.innerHTML = '';
-            
-            data.forEach(item => {
-                let statusBadge = '';
-                let borderClass = 'border-slate-200';
-                
-                if (item.status === 'hit') {
-                    statusBadge = `<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full">HIT ✅</span>`;
-                    borderClass = 'border-emerald-300 bg-emerald-50/20';
-                } else if (item.status === 'miss') {
-                    statusBadge = `<span class="px-2 py-0.5 bg-rose-100 text-rose-800 text-[10px] font-bold rounded-full">MISS ❌</span>`;
-                    borderClass = 'border-rose-200 bg-rose-50/10';
-                } else if (item.status === 'new') {
-                    statusBadge = `<span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-bold rounded-full">NEW 🔥</span>`;
-                    borderClass = 'border-blue-300 bg-blue-50/30';
-                }
+        const game1Hits = [
+            "Airball / Airballs / Airballed",
+            "Alley-oop",
+            "Ankle",
+            "Chalamet",
+            "Clutch",
+            "Draft / Drafted",
+            "Elbow",
+            "Highlight",
+            "Injury / Injured",
+            "Jordan",
+            "Momentum",
+            "MVP",
+            "Popovich",
+            "Sweep / Sweeps / Swept",
+            "Travel / Travels / Traveled",
+        ];
 
-                let changeBadge = '';
-                if (item.change.includes('▲')) {
-                    changeBadge = `<span class="text-emerald-600 font-bold ml-1 text-xs">${item.change}</span>`;
-                } else if (item.change.includes('▼')) {
-                    changeBadge = `<span class="text-rose-500 font-bold ml-1 text-xs">${item.change}</span>`;
-                }
+        const game1Misses = [
+            "Alien",
+            "Buzzer",
+            "Career High",
+            "Event Does Not Qualify",
+            "Frost Bank",
+            "GOAT",
+            "Kobe",
+            "LeBron",
+            "Overtime",
+            "Retire / Retired / Retirement",
+            "Spike Lee",
+            "Tech / Technical",
+            "Triple Double",
+            "Trump",
+            "Wingspan",
+        ];
 
-                const card = document.createElement('div');
-                card.className = `bg-white p-4 rounded-xl border ${borderClass} shadow-sm transition-all duration-200 hover:shadow-md`;
-                card.innerHTML = `
-                    <div class="flex flex-col h-full justify-between">
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                ${statusBadge}
-                                <span class="text-xs font-mono font-bold text-slate-500">${item.chance} ${changeBadge}</span>
-                            </div>
-                            <h3 class="font-bold text-slate-800 text-sm md:text-base mb-1 truncate" title="${item.word}">${item.word}</h3>
-                            <p class="text-[11px] text-slate-400 italic mb-4">${item.notes}</p>
+        // ─── STATUS CONFIG ───────────────────────────────────────────────────────
+
+        const statusCfg = {
+            hit:  { label: "HIT",  badge: "bg-green-900/40 text-green-400 border border-green-800/40", accent: "#22c55e" },
+            miss: { label: "MISS", badge: "bg-red-900/40 text-red-400 border border-red-800/40",       accent: "#ef4444" },
+            new:  { label: "NEW",  badge: "bg-blue-900/40 text-blue-400 border border-blue-800/40",    accent: "#60a5fa" },
+        };
+
+        // ─── TABS ────────────────────────────────────────────────────────────────
+
+        function switchTab(tab) {
+            document.getElementById('view-g1').classList.toggle('hidden', tab !== 'g1');
+            document.getElementById('view-g2').classList.toggle('hidden', tab !== 'g2');
+
+            const active   = 'bg-slate-700 text-white';
+            const inactive = 'text-slate-500 hover:text-slate-300';
+
+            document.getElementById('tab-g2').className = `px-5 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'g2' ? active : inactive}`;
+            document.getElementById('tab-g1').className = `px-5 py-2 rounded-lg text-sm font-bold transition-all ${tab === 'g1' ? active : inactive}`;
+        }
+
+        // ─── GAME 2 ──────────────────────────────────────────────────────────────
+
+        const featured = [
+            { word: "Injury / Injured",            chance: 96, change: "",   yes: "-3485", no: "+2241" },
+            { word: "MSG / Madison Square Garden", chance: 95, change: "▼1", yes: "-2046", no: "+1462" },
+            { word: "Spike Lee",                   chance: 82, change: "▲5", yes: "-490",  no: "+295"  },
+            { word: "Trump",                       chance: 75, change: "▼6", yes: "-323",  no: "+265"  },
+        ];
+
+        function renderFeatured() {
+            const el = document.getElementById('featuredCards');
+            featured.forEach(item => {
+                const changeCls = item.change.includes('▲') ? 'text-green-400' : 'text-red-400';
+                el.innerHTML += `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
+                        <div class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold truncate">${item.word}</div>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-3xl font-black text-amber-400">${item.chance}%</span>
+                            ${item.change ? `<span class="text-xs font-bold ${changeCls}">${item.change}</span>` : ''}
                         </div>
-                        <div class="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                            <div class="flex justify-between text-xs font-mono">
-                                <span class="text-emerald-700 font-bold">Yes: ${item.yes}</span>
-                                <span class="text-rose-600 font-bold">${item.no ? 'No: ' + item.no : ''}</span>
-                            </div>
+                        <div class="text-[11px] font-mono text-slate-500 border-t border-slate-800 pt-2">
+                            Yes <span class="text-green-400">${item.yes}</span>
+                            &nbsp;·&nbsp;
+                            No <span class="text-red-400">${item.no}</span>
                         </div>
-                    </div>
-                `;
-                container.appendChild(card);
+                    </div>`;
             });
         }
 
-        function filterWords() {
-            const query = document.getElementById('wordSearch').value.toLowerCase();
-            const filtered = masterData.filter(item => item.word.toLowerCase().includes(query));
-            renderGrid(filtered);
+        let activeFilter = 'all';
+
+        function applyFilters() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = game2Data.filter(d =>
+                d.word.toLowerCase().includes(q) &&
+                (activeFilter === 'all' || d.status === activeFilter)
+            );
+            renderGame2Grid(filtered);
         }
 
-        function filterSettlement(type) {
-            if (type === 'all') {
-                renderGrid(masterData);
-            } else {
-                const filtered = masterData.filter(item => item.status === type);
-                renderGrid(filtered);
+        function filterStatus(type) {
+            activeFilter = type;
+            ['all', 'hit', 'miss', 'new'].forEach(t => {
+                const el = document.getElementById('f-' + t);
+                if (t === type) {
+                    el.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-400 text-slate-900 transition-all';
+                } else {
+                    el.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-500 hover:text-slate-300 transition-all';
+                }
+            });
+            applyFilters();
+        }
+
+        function renderGame2Grid(data) {
+            const grid = document.getElementById('propGrid');
+            grid.innerHTML = '';
+
+            if (!data.length) {
+                grid.innerHTML = '<div class="col-span-4 text-center text-slate-600 py-16 text-sm">No props match this filter.</div>';
+                return;
             }
+
+            data.forEach(item => {
+                const cfg = statusCfg[item.status];
+                const changeCls = item.change.includes('▲') ? 'text-green-400' : item.change.includes('▼') ? 'text-red-400' : '';
+                const chanceStr = item.chance !== null ? item.chance + '%' : '—';
+
+                const card = document.createElement('div');
+                card.className = 'prop-card bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-2.5';
+                card.style.borderLeft = `2px solid ${cfg.accent}`;
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <span class="text-sm font-semibold text-slate-200 leading-snug">${item.word}</span>
+                        <span class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-bold ${cfg.badge}">${cfg.label}</span>
+                    </div>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-2xl font-black text-amber-400">${chanceStr}</span>
+                        ${item.change ? `<span class="text-xs font-bold ${changeCls}">${item.change}</span>` : ''}
+                    </div>
+                    <div class="border-t border-slate-800 pt-2 flex justify-between text-xs font-mono">
+                        <span class="text-green-400">Yes&nbsp;${item.yes}</span>
+                        ${item.no ? `<span class="text-red-400">No&nbsp;${item.no}</span>` : ''}
+                    </div>
+                    <div class="text-[10px] text-slate-600">${item.notes}</div>
+                `;
+                grid.appendChild(card);
+            });
         }
 
-        // Run on start
+        function renderG2Stats() {
+            const hits   = game2Data.filter(d => d.status === 'hit').length;
+            const misses = game2Data.filter(d => d.status === 'miss').length;
+            const settled = hits + misses;
+            const rate = Math.round(hits / settled * 100);
+            document.getElementById('g2-stats').innerHTML = `
+                <span class="text-green-400">${hits}H</span>
+                <span class="text-slate-700">/</span>
+                <span class="text-red-400">${misses}M</span>
+                <span class="text-slate-700">·</span>
+                <span class="text-amber-400">${rate}%</span>
+            `;
+        }
+
+        // ─── GAME 1 ──────────────────────────────────────────────────────────────
+
+        function renderGame1() {
+            const hitsEl   = document.getElementById('g1-hits');
+            const missesEl = document.getElementById('g1-misses');
+
+            game1Hits.forEach(word => {
+                hitsEl.innerHTML += `
+                    <div class="flex items-center justify-between bg-slate-900 border border-slate-800 border-l-2 rounded-lg px-3 py-2.5 gap-3" style="border-left-color:#22c55e">
+                        <span class="text-sm text-slate-200">${word}</span>
+                        <span class="shrink-0 text-green-400 text-xs font-bold font-mono">YES</span>
+                    </div>`;
+            });
+
+            game1Misses.forEach(word => {
+                missesEl.innerHTML += `
+                    <div class="flex items-center justify-between bg-slate-900 border border-slate-800 border-l-2 rounded-lg px-3 py-2.5 gap-3" style="border-left-color:#ef4444">
+                        <span class="text-sm text-slate-200">${word}</span>
+                        <span class="shrink-0 text-red-400 text-xs font-bold font-mono">NO</span>
+                    </div>`;
+            });
+        }
+
+        // ─── INIT ────────────────────────────────────────────────────────────────
+
         window.onload = () => {
-            renderGrid(masterData);
+            renderFeatured();
+            renderG2Stats();
+            filterStatus('all');
+            renderGame1();
+            switchTab('g2');
         };
     </script>
 </body>
