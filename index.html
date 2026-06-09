@@ -10,8 +10,6 @@
         .scrollbar::-webkit-scrollbar { width: 4px; }
         .scrollbar::-webkit-scrollbar-track { background: transparent; }
         .scrollbar::-webkit-scrollbar-thumb { background: #1e2635; border-radius: 4px; }
-        .pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
     </style>
 </head>
 <body class="text-slate-200 font-sans antialiased min-h-screen">
@@ -37,10 +35,7 @@
         <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit">
             <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
             <button onclick="switchTab('g2')" id="tab-g2" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 2</button>
-            <button onclick="switchTab('g3')" id="tab-g3" class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
-                Game 3
-                <span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 rounded text-[10px] font-black tracking-wide">TONIGHT</span>
-            </button>
+            <button onclick="switchTab('g3')" id="tab-g3" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 3</button>
         </div>
 
         <!-- ══════════ GAME 1 ══════════ -->
@@ -126,35 +121,35 @@
 
         <!-- ══════════ GAME 3 ══════════ -->
         <div id="view-g3" class="hidden">
-
-            <!-- Live indicator -->
-            <div class="flex items-center gap-2.5 mb-6">
-                <span class="w-2 h-2 rounded-full bg-green-400 pulse"></span>
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Active Board · 28 Props · Game 3 Tonight</span>
+            <div class="grid grid-cols-3 gap-3 mb-8">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-3xl font-black text-green-400">14</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Hits</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-3xl font-black text-red-400">15</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Misses</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-3xl font-black text-amber-400">48%</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Hit Rate</div>
+                </div>
             </div>
-
-            <!-- Featured top 4 -->
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8" id="g3-featured"></div>
-
-            <!-- Full board -->
-            <div>
-                <div class="flex items-center gap-2 mb-4">
-                    <span class="w-1 h-3.5 bg-slate-600 rounded-full"></span>
-                    <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Full Board</h3>
-                    <span class="text-[10px] text-slate-700 font-mono ml-2">G1 · G2 dots show prior results</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-400"></span>
+                        <h3 class="text-[11px] font-bold text-green-400 uppercase tracking-widest">Said On Air · Hits</h3>
+                    </div>
+                    <div class="space-y-1.5" id="g3-hits"></div>
                 </div>
-
-                <!-- Column headers -->
-                <div class="flex items-center gap-3 px-4 pb-2 border-b border-slate-800/60 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                    <span class="flex-1">Word / Phrase</span>
-                    <span class="w-10 text-center hidden sm:block">G1</span>
-                    <span class="w-10 text-center hidden sm:block">G2</span>
-                    <span class="w-16 text-right">Odds</span>
-                    <span class="w-20 text-right">Yes</span>
-                    <span class="w-20 text-right">No</span>
+                <div>
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
+                        <h3 class="text-[11px] font-bold text-red-400 uppercase tracking-widest">Not Said · Misses</h3>
+                    </div>
+                    <div class="space-y-1.5" id="g3-misses"></div>
                 </div>
-
-                <div id="g3-board" class="divide-y divide-slate-800/50"></div>
             </div>
         </div>
 
@@ -190,42 +185,19 @@
             "Retire / Retired / Retirement", "Kobe", "GOAT",
         ];
 
-        // Game 3 active board — sorted by probability
-        const game3Data = [
-            { word: "Injury / Injured",               chance: 95, change: "▼1",  yes: "-2581", no: "+1772" },
-            { word: "MSG / Madison Square Garden",     chance: 95, change: "",    yes: "-2046", no: "+1462" },
-            { word: "Alley-oop",                       chance: 81, change: "▲4",  yes: "-490",  no: "+373"  },
-            { word: "MVP",                             chance: 80, change: "▲3",  yes: "-430",  no: "+330"  },
-            { word: "Trump",                           chance: 80, change: "▲3",  yes: "-430",  no: "+351"  },
-            { word: "Momentum",                        chance: 79, change: "▲2",  yes: "-405",  no: "+295"  },
-            { word: "Ankle",                           chance: 77, change: "▲8",  yes: "-360",  no: "+295"  },
-            { word: "Clutch",                          chance: 77, change: "▼2",  yes: "-360",  no: "+295"  },
-            { word: "Spike Lee",                       chance: 76, change: "▼8",  yes: "-341",  no: "+279"  },
-            { word: "Elbow",                           chance: 74, change: "",    yes: "-382",  no: "+252"  },
-            { word: "Draft / Drafted",                 chance: 73, change: "▼11", yes: "-306",  no: "+252"  },
-            { word: "Travel / Travels / Traveled",     chance: 73, change: "▼1",  yes: "-323",  no: "+239"  },
-            { word: "Tech / Technical",                chance: 69, change: "▼4",  yes: "-239",  no: "+198"  },
-            { word: "Airball / Airballs / Airballed",  chance: 64, change: "▼2",  yes: "-191",  no: "+158"  },
-            { word: "Sweep / Sweeps / Swept",          chance: 63, change: "",    yes: "-183",  no: "+152"  },
-            { word: "Overtime",                        chance: 62, change: "▼6",  yes: "-191",  no: "+158"  },
-            { word: "Zohran / Mamdani",                chance: 60, change: "▲16", yes: "-161",  no: "+134"  },
-            { word: "Buzzer",                          chance: 58, change: "▲6",  yes: "-149",  no: "+123"  },
-            { word: "Jordan",                          chance: 57, change: "▲7",  yes: "-149",  no: "+123"  },
-            { word: "Popovich",                        chance: 47, change: "▲18", yes: "+105",  no: "-149"  },
-            { word: "Highlight",                       chance: 38, change: "▲9",  yes: "+152",  no: "-183"  },
-            { word: "Career High",                     chance: 38, change: "▲5",  yes: "+152",  no: "-183"  },
-            { word: "Alien",                           chance: 29, change: "▲5",  yes: "+228",  no: "-277"  },
-            { word: "Triple Double",                   chance: 27, change: "▲4",  yes: "+252",  no: "-306"  },
-            { word: "Wingspan",                        chance: 26, change: "▲2",  yes: "+265",  no: "-323"  },
-            { word: "Retire / Retired / Retirement",   chance: 24, change: "▲4",  yes: "+295",  no: "-360"  },
-            { word: "LeBron",                          chance: 19, change: "▼2",  yes: "+398",  no: "-490"  },
-            { word: "GOAT",                            chance: 14, change: "▲2",  yes: "+573",  no: "-720"  },
+        const game3Hits = [
+            "Ankle", "Buzzer", "Clutch", "Elbow", "Jordan", "Momentum",
+            "MSG / Madison Square Garden", "MVP", "Overtime", "Spike Lee",
+            "Sweep / Sweeps / Swept", "Tech / Technical",
+            "Travel / Travels / Traveled", "Trump",
         ];
-
-        const g1HitSet   = new Set(game1Hits);
-        const g1MissSet  = new Set(game1Misses);
-        const g2HitSet   = new Set(game2Hits);
-        const g2MissSet  = new Set(game2Misses);
+        const game3Misses = [
+            "Airball / Airballs / Airballed", "Alien", "Career High",
+            "Draft / Drafted", "GOAT", "Highlight", "Injury / Injured",
+            "Kobe", "LeBron", "Event Does Not Qualify", "Popovich",
+            "Retire / Retired / Retirement", "Triple Double", "Wingspan",
+            "Zohran / Mamdani",
+        ];
 
         // ─── TABS ───────────────────────────────────────────────────────────────
 
@@ -269,72 +241,11 @@
 
         // ─── GAME 3 ─────────────────────────────────────────────────────────────
 
-        // Featured: top 4 most notable props for tonight
-        const featuredWords = new Set([
-            "Injury / Injured",
-            "Trump",
-            "Spike Lee",
-            "Zohran / Mamdani",
-        ]);
-
-        function renderG3Featured() {
-            const el = document.getElementById('g3-featured');
-            game3Data.filter(d => featuredWords.has(d.word)).forEach(item => {
-                const changeCls = item.change.includes('▲') ? 'text-green-400' : item.change.includes('▼') ? 'text-red-400' : '';
-                const isNew = item.word === "Zohran / Mamdani";
-                el.innerHTML += `
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
-                        <div class="flex items-start justify-between gap-1">
-                            <div class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold leading-tight">${item.word}</div>
-                            ${isNew ? '<span class="shrink-0 px-1.5 py-0.5 bg-blue-900/40 text-blue-400 border border-blue-800/30 rounded text-[10px] font-bold">NEW</span>' : ''}
-                        </div>
-                        <div class="flex items-baseline gap-1.5">
-                            <span class="text-3xl font-black text-amber-400">${item.chance}%</span>
-                            ${item.change ? `<span class="text-xs font-bold ${changeCls}">${item.change}</span>` : ''}
-                        </div>
-                        <div class="text-[11px] font-mono text-slate-500 border-t border-slate-800 pt-2">
-                            Yes <span class="text-green-400">${item.yes}</span>
-                            &nbsp;·&nbsp;
-                            No <span class="text-red-400">${item.no}</span>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function priorDot(word, hitSet, missSet) {
-            if (hitSet.has(word))  return `<span class="inline-block w-2 h-2 rounded-full bg-green-400" title="Hit"></span>`;
-            if (missSet.has(word)) return `<span class="inline-block w-2 h-2 rounded-full bg-red-500/70" title="Miss"></span>`;
-            return                        `<span class="inline-block w-2 h-2 rounded-full bg-slate-700" title="Not on board"></span>`;
-        }
-
-        function renderG3Board() {
-            const el = document.getElementById('g3-board');
-            game3Data.forEach((item, i) => {
-                const changeCls = item.change.includes('▲') ? 'text-green-400' : item.change.includes('▼') ? 'text-red-400' : 'text-slate-600';
-                const isNew = item.word === "Zohran / Mamdani";
-                const row = document.createElement('div');
-                row.className = 'flex items-center gap-3 px-4 py-3 hover:bg-slate-900/40 transition-colors';
-                row.innerHTML = `
-                    <span class="text-[11px] text-slate-700 w-5 shrink-0 font-mono">${i + 1}</span>
-                    <span class="flex-1 text-sm text-slate-200 leading-snug">
-                        ${item.word}
-                        ${isNew ? '<span class="ml-1.5 px-1 py-0.5 bg-blue-900/40 text-blue-400 border border-blue-800/30 rounded text-[9px] font-bold align-middle">NEW</span>' : ''}
-                    </span>
-                    <div class="hidden sm:flex items-center justify-center w-10 gap-1">
-                        ${priorDot(item.word, g1HitSet, g1MissSet)}
-                    </div>
-                    <div class="hidden sm:flex items-center justify-center w-10 gap-1">
-                        ${priorDot(item.word, g2HitSet, g2MissSet)}
-                    </div>
-                    <div class="flex items-baseline gap-1 w-16 justify-end">
-                        <span class="text-base font-black text-amber-400">${item.chance}%</span>
-                        ${item.change ? `<span class="text-[10px] font-bold ${changeCls}">${item.change}</span>` : ''}
-                    </div>
-                    <span class="font-mono text-green-400 text-xs w-20 text-right">Yes&nbsp;${item.yes}</span>
-                    <span class="font-mono text-red-400 text-xs w-20 text-right">No&nbsp;${item.no}</span>
-                `;
-                el.appendChild(row);
-            });
+        function renderGame3() {
+            const h = document.getElementById('g3-hits');
+            const m = document.getElementById('g3-misses');
+            game3Hits.forEach(w   => h.innerHTML += resultRow(w, true));
+            game3Misses.forEach(w => m.innerHTML += resultRow(w, false));
         }
 
         // ─── INIT ────────────────────────────────────────────────────────────────
@@ -342,8 +253,7 @@
         window.onload = () => {
             renderGame1();
             renderGame2();
-            renderG3Featured();
-            renderG3Board();
+            renderGame3();
             switchTab('g1');
         };
     </script>
