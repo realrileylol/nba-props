@@ -1,10 +1,9 @@
-// Vercel serverless — all open Kalshi markets, properly categorized
-// Infers category from series_ticker + title since new API omits category field
-// Filters out multi-leg combo markets; groups by sport/topic; top 50 per category
+// Vercel serverless — Kalshi markets organized by event, matching Kalshi's own layout
+// Fetches event titles from /events endpoint + market prices from /markets endpoint
+// Groups by sport/topic; within each category groups by event_ticker
 
 const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
-// Category definitions: id, display label, series ticker patterns, title keywords
 const CATEGORY_DEFS = [
     {
         id: 'nba', label: '🏀 NBA',
@@ -67,14 +66,13 @@ function inferCategory(m) {
     return (m.category || 'other').toLowerCase();
 }
 
-// Filter out multi-leg combo/parlay markets
+// Only drop the most obvious multi-leg parlay titles
 function isSimpleMarket(m) {
     const t = m.title || '';
-    // Multiple "yes X / no Y" leg conditions in a single title = parlay
-    const legs = (t.match(/\b(yes|no)\s+\S/gi) || []).length;
-    if (legs > 1) return false;
-    // Extremely long comma-separated conditions (6+ commas) = combined market
-    if ((t.match(/,/g) || []).length >= 6) return false;
+    // Multiple "yes X / no Y" condition segments = parlay
+    if ((t.match(/\b(yes|no)\s+\S/gi) || []).length > 1) return false;
+    // Extremely comma-heavy titles = combined market (7+ commas to be safe)
+    if ((t.match(/,/g) || []).length >= 7) return false;
     return true;
 }
 
@@ -86,17 +84,20 @@ function toAmericanOdds(priceCents) {
         : Math.round(((1 - p) / p) * 100);
 }
 
-function shapeMarket(m) {
+function shapeMarket(m, eventTitle) {
     return {
         ticker:       m.ticker,
         seriesTicker: m.series_ticker || null,
         eventTicker:  m.event_ticker  || null,
+        eventTitle:   eventTitle      || null,
         title:        m.title || m.ticker,
+        subtitle:     m.subtitle      || null,
         category:     inferCategory(m),
         yesOdds:      toAmericanOdds(m.yes_ask),
         noOdds:       toAmericanOdds(m.no_ask),
-        yesPct:       m.yes_ask   || null,
-        noPct:        m.no_ask    || null,
+        yesBid:       m.yes_bid       || null,
+        yesPct:       m.yes_ask       || null,
+        noPct:        m.no_ask        || null,
         volume:       m.volume        || 0,
         openInterest: m.open_interest || 0,
         closeTime:    m.close_time    || null,
@@ -111,19 +112,53 @@ function getHeaders() {
     };
 }
 
-async function fetchPage(cursor) {
-    const params = new URLSearchParams({ status: 'open', limit: '200' });
-    if (cursor) params.set('cursor', cursor);
-    const r = await fetch(`${KALSHI_BASE}/markets?${params}`, {
-        headers: getHeaders(),
-        signal: AbortSignal.timeout(7000),
-    });
-    if (!r.ok) {
-        const body = await r.text().catch(() => '');
-        throw new Error(`Kalshi ${r.status}: ${body.slice(0, 300)}`);
+// Fetch event titles from /events endpoint (best-effort — fail silently)
+async function fetchEventTitles() {
+    const titleMap = {};
+    try {
+        let cursor = null;
+        for (let page = 0; page < 3; page++) {
+            const params = new URLSearchParams({ status: 'open', limit: '200' });
+            if (cursor) params.set('cursor', cursor);
+            const r = await fetch(`${KALSHI_BASE}/events?${params}`, {
+                headers: getHeaders(),
+                signal: AbortSignal.timeout(6000),
+            });
+            if (!r.ok) break;
+            const d = await r.json();
+            const events = d.events || [];
+            events.forEach(e => {
+                if (e.event_ticker && e.title) titleMap[e.event_ticker] = e.title;
+            });
+            cursor = d.cursor;
+            if (!cursor || !events.length) break;
+        }
+    } catch (_) { /* fail silently — titles are supplementary */ }
+    return titleMap;
+}
+
+// Fetch markets from /markets endpoint
+async function fetchMarkets() {
+    const all = [];
+    let cursor = null;
+    for (let page = 0; page < 2; page++) {
+        const params = new URLSearchParams({ status: 'open', limit: '200' });
+        if (cursor) params.set('cursor', cursor);
+        const r = await fetch(`${KALSHI_BASE}/markets?${params}`, {
+            headers: getHeaders(),
+            signal: AbortSignal.timeout(7000),
+        });
+        if (!r.ok) {
+            const body = await r.text().catch(() => '');
+            throw new Error(`Kalshi ${r.status}: ${body.slice(0, 300)}`);
+        }
+        const d = await r.json();
+        const markets = d.markets || [];
+        all.push(...markets);
+        cursor = d.cursor;
+        if (!cursor || !markets.length) break;
     }
-    const d = await r.json();
-    return { markets: d.markets || [], cursor: d.cursor || null };
+    return all;
 }
 
 module.exports = async (req, res) => {
@@ -139,19 +174,17 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const allRaw = [];
-        let cursor = null;
-        for (let page = 0; page < 2; page++) {
-            const { markets, cursor: next } = await fetchPage(cursor);
-            allRaw.push(...markets);
-            cursor = next;
-            if (!cursor || !markets.length) break;
-        }
+        // Run both fetches in parallel; event titles are best-effort
+        const [eventTitles, allRaw] = await Promise.all([
+            fetchEventTitles(),
+            fetchMarkets(),
+        ]);
 
-        // Filter to simple single-question markets; shape; categorize
-        const shaped = allRaw
-            .filter(isSimpleMarket)
-            .map(shapeMarket);
+        // Filter out obvious multi-leg combo markets
+        const filtered = allRaw.filter(isSimpleMarket);
+
+        // Shape with event titles joined in
+        const shaped = filtered.map(m => shapeMarket(m, eventTitles[m.event_ticker] || null));
 
         // Group by category
         const grouped = {};
@@ -166,7 +199,7 @@ module.exports = async (req, res) => {
             soccer: '⚽ Soccer', politics: '🏛️ Politics', economics: '📈 Economics',
             crypto: '₿ Crypto', tech: '💻 Tech', entertainment: '🎬 Entertainment', other: '📋 Other',
         };
-        const ORDER = ['nba', 'mlb', 'nfl', 'nhl', 'soccer', 'politics', 'economics', 'crypto', 'tech', 'entertainment', 'other'];
+        const ORDER = ['nba','mlb','nfl','nhl','soccer','politics','economics','crypto','tech','entertainment','other'];
         const allKeys = [...new Set([...ORDER, ...Object.keys(grouped)])];
 
         let categories = allKeys
@@ -174,17 +207,15 @@ module.exports = async (req, res) => {
             .map(c => ({
                 id:      c,
                 label:   LABEL_MAP[c] || (c.charAt(0).toUpperCase() + c.slice(1)),
-                markets: grouped[c]
-                    .sort((a, b) => (b.volume || 0) - (a.volume || 0))
-                    .slice(0, 50),
+                markets: grouped[c].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 100),
                 total:   grouped[c].length,
             }));
 
-        // Fallback: if category inference failed entirely, dump everything into Other
+        // Absolute fallback: show everything in Other if categorization returns nothing
         if (!categories.length && shaped.length) {
             categories = [{
-                id: 'other', label: '📋 Other',
-                markets: [...shaped].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 50),
+                id: 'other', label: '📋 All Markets',
+                markets: [...shaped].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 100),
                 total: shaped.length,
             }];
         }
