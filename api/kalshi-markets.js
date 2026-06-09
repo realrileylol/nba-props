@@ -22,8 +22,9 @@ const CATEGORY_LABELS = {
 };
 
 function getHeaders() {
+    const key = process.env.KALSHI_API_KEY || '';
     return {
-        'Authorization': process.env.KALSHI_API_KEY || '',
+        'Authorization': key.startsWith('Bearer ') ? key : `Bearer ${key}`,
         'Accept': 'application/json',
     };
 }
@@ -59,8 +60,10 @@ async function fetchPage(cursor) {
     const params = new URLSearchParams({ status: 'open', limit: '200' });
     if (cursor) params.set('cursor', cursor);
     const r = await fetch(`${KALSHI_BASE}/markets?${params}`, { headers: getHeaders() });
-    if (r.status === 401 || r.status === 403) throw new Error(`Kalshi auth failed (${r.status}) — check KALSHI_API_KEY`);
-    if (!r.ok) throw new Error(`Kalshi ${r.status}`);
+    if (!r.ok) {
+        const body = await r.text().catch(() => '');
+        throw new Error(`Kalshi ${r.status}: ${body.slice(0, 200)}`);
+    }
     const d = await r.json();
     return { markets: d.markets || [], cursor: d.cursor || null };
 }

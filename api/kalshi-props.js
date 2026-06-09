@@ -5,20 +5,20 @@
 const KALSHI_BASE = 'https://trading-api.kalshi.com/trade-api/v2';
 
 function headers() {
+    const key = process.env.KALSHI_API_KEY || '';
     return {
-        'Authorization': process.env.KALSHI_API_KEY || '',
+        'Authorization': key.startsWith('Bearer ') ? key : `Bearer ${key}`,
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
     };
 }
 
 async function searchMarkets(query, limit = 200) {
     const url = `${KALSHI_BASE}/markets?status=open&limit=${limit}&search=${encodeURIComponent(query)}`;
     const res  = await fetch(url, { headers: headers() });
-    if (res.status === 401 || res.status === 403) {
-        throw new Error(`Kalshi auth failed (${res.status}) — check KALSHI_API_KEY`);
+    if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        throw new Error(`Kalshi ${res.status}: ${body.slice(0, 200)}`);
     }
-    if (!res.ok) throw new Error(`Kalshi ${res.status}`);
     const data = await res.json();
     return data.markets || data.market_candidates || [];
 }
