@@ -166,7 +166,7 @@ module.exports = async (req, res) => {
         const ORDER = ['nba', 'mlb', 'nfl', 'nhl', 'soccer', 'politics', 'economics', 'crypto', 'tech', 'entertainment', 'other'];
         const allKeys = [...new Set([...ORDER, ...Object.keys(grouped)])];
 
-        const categories = allKeys
+        let categories = allKeys
             .filter(c => grouped[c]?.length > 0)
             .map(c => ({
                 id:      c,
@@ -176,6 +176,15 @@ module.exports = async (req, res) => {
                     .slice(0, 50),
                 total:   grouped[c].length,
             }));
+
+        // Fallback: if category inference failed entirely, dump everything into Other
+        if (!categories.length && shaped.length) {
+            categories = [{
+                id: 'other', label: '📋 Other',
+                markets: [...shaped].sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 50),
+                total: shaped.length,
+            }];
+        }
 
         res.status(200).json({
             categories,

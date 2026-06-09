@@ -1392,14 +1392,18 @@
         async function fetchAllKalshi(force = false) {
             if (kalshiAllLoaded && !force) return;
             const pane = document.getElementById('kalshi-all-pane');
-            if (pane) pane.innerHTML = '<div class="text-slate-700 text-sm text-center py-16">Loading all Kalshi markets…</div>';
+            if (pane) pane.innerHTML = '<div class="text-slate-700 text-sm text-center py-16">Loading Kalshi markets…</div>';
             try {
-                const res  = await fetch('/api/kalshi-markets');
+                const res  = await fetch('/api/kalshi-markets', { signal: AbortSignal.timeout(15000) });
                 const data = await res.json();
                 renderAllKalshi(data);
                 kalshiAllLoaded = !data.error;
             } catch (err) {
-                if (pane) pane.innerHTML = `<div class="text-slate-600 text-sm text-center py-12">Failed — ${err.message}</div>`;
+                if (pane) pane.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-10 text-center">
+                        <p class="text-slate-500 text-sm mb-3">${err.name === 'TimeoutError' ? 'Request timed out — Kalshi API is slow right now.' : 'Failed to load: ' + err.message}</p>
+                        <button onclick="fetchAllKalshi(true)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Try Again</button>
+                    </div>`;
             }
         }
 
@@ -1428,6 +1432,20 @@
             _kalshiCategories = categories || [];
             _kalshiCategories.forEach(cat => cat.markets.forEach(m => { _kalshiData[m.ticker] = m; }));
 
+            const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+            if (meta) meta.textContent = `${total || 0} open markets across ${_kalshiCategories.length} categories · updated ${ts}`;
+
+            if (!_kalshiCategories.length) {
+                if (tabs) tabs.innerHTML = '';
+                if (pane) pane.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-10 text-center">
+                        <p class="text-slate-500 text-sm mb-1">${total > 0 ? `${total} markets loaded but couldn't be sorted into categories.` : 'No open markets available right now.'}</p>
+                        <p class="text-slate-700 text-xs mb-4">This can happen when Kalshi has few active markets or the category patterns need updating.</p>
+                        <button onclick="fetchAllKalshi(true)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Refresh</button>
+                    </div>`;
+                return;
+            }
+
             if (tabs) {
                 tabs.innerHTML = _kalshiCategories.map(cat => `
                     <button id="kcat-${cat.id}" onclick="selectKalshiCategory('${cat.id}')"
@@ -1436,10 +1454,7 @@
                     </button>`).join('');
             }
 
-            const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
-            if (meta) meta.textContent = `${total || '?'} open markets across ${_kalshiCategories.length} categories · updated ${ts}`;
-
-            if (_kalshiCategories.length) selectKalshiCategory(_kalshiCategories[0].id);
+            selectKalshiCategory(_kalshiCategories[0].id);
         }
 
         function selectKalshiCategory(catId) {
