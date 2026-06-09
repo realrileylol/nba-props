@@ -294,6 +294,19 @@
         Built from visual sportsbook data, settled broadcast transcripts, and broadcaster pattern analysis.
     </footer>
 
+    <!-- ══════════ H2H HISTORY SLIDE PANEL ══════════ -->
+    <div id="h2h-overlay" onclick="closeH2H()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden"></div>
+    <div id="h2h-panel" class="fixed top-0 right-0 h-full w-full max-w-md bg-slate-950 border-l border-slate-800 z-50 flex flex-col shadow-2xl transition-transform duration-300 ease-in-out translate-x-full">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-800 shrink-0 bg-slate-900">
+            <div>
+                <div id="h2h-title" class="font-black text-white text-sm leading-tight"></div>
+                <div class="text-[11px] text-slate-500 mt-0.5">Head-to-Head · Last 3 Years</div>
+            </div>
+            <button onclick="closeH2H()" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-colors text-lg leading-none">✕</button>
+        </div>
+        <div id="h2h-content" class="flex-1 overflow-y-auto p-5 scrollbar"></div>
+    </div>
+
     <script>
         // ─── DATA ─────────────────────────────────────────────────────────────
 
@@ -872,14 +885,20 @@
             </div>`;
         }
 
-        function matchCard(e, showClock, isWC) {
+        function matchCard(e, showClock, isWC, league) {
             const home = e.home, away = e.away;
+            const lg = league || currentLeague || 'world-cup';
             const isLive = e.state === 'in';
             const isDone = e.state === 'post';
             const scoreStr = (isDone || isLive)
                 ? `<span class="text-white font-black text-lg">${home?.score ?? '0'} – ${away?.score ?? '0'}</span>`
                 : `<span class="text-slate-600 font-mono text-xs">${fmtDate(e.date)}</span>`;
             const clockStr = isLive && e.clock ? `<span class="text-red-400 text-[10px] font-bold ml-1">${e.clock}'</span>` : '';
+            const histBtn = (home?.id && away?.id) ? `
+                <button onclick="openH2H(${JSON.stringify(home.id)},${JSON.stringify(away.id)},${JSON.stringify(home.name||'')},${JSON.stringify(away.name||'')},${JSON.stringify(lg)})"
+                    class="text-[10px] font-bold text-slate-600 hover:text-amber-400 transition-colors flex items-center gap-1 px-2 py-0.5 rounded hover:bg-slate-800">
+                    📊 H2H
+                </button>` : '';
             return `
             <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
                 <div class="flex items-center justify-between gap-2">
@@ -888,16 +907,23 @@
                     <span class="text-sm font-semibold text-slate-200 flex-1 text-right truncate">${away?.name ?? '—'}</span>
                 </div>
                 ${e.note ? `<div class="text-[10px] text-slate-600 text-center mt-1">${e.note}</div>` : ''}
+                <div class="flex justify-end mt-1.5">${histBtn}</div>
             </div>`;
         }
 
-        function predictionCard(e) {
+        function predictionCard(e, league) {
             const pred = calcPrediction(e.home, e.away);
+            const lg = league || currentLeague || 'world-cup';
             const confBadge = pred.conf === 'HIGH'
                 ? 'bg-green-900/40 text-green-400 border-green-800/40'
                 : pred.conf === 'MED'
                 ? 'bg-amber-900/40 text-amber-400 border-amber-800/40'
                 : 'bg-slate-800 text-slate-400 border-slate-700';
+            const histBtn = (e.home?.id && e.away?.id) ? `
+                <button onclick="openH2H(${JSON.stringify(e.home.id)},${JSON.stringify(e.away.id)},${JSON.stringify(e.home.name||'')},${JSON.stringify(e.away.name||'')},${JSON.stringify(lg)})"
+                    class="flex items-center justify-center gap-1 bg-slate-800 hover:bg-slate-700 rounded-lg px-3 py-1.5 transition-colors w-full">
+                    <div class="text-[9px] text-slate-500 uppercase tracking-wide font-bold">📊 H2H History</div>
+                </button>` : '';
 
             return `
             <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
@@ -922,8 +948,8 @@
                     <span class="text-red-400">${pred.aw}% ${e.away?.name}</span>
                 </div>
 
-                <!-- Bet suggestions -->
-                <div class="grid grid-cols-2 gap-2">
+                <!-- Bet suggestions + H2H -->
+                <div class="grid grid-cols-3 gap-2">
                     <div class="bg-slate-800 rounded-lg px-3 py-1.5">
                         <div class="text-[9px] text-slate-600 uppercase tracking-wide font-bold">Pick</div>
                         <div class="text-xs font-bold text-amber-400">${pred.betLine}</div>
@@ -932,6 +958,7 @@
                         <div class="text-[9px] text-slate-600 uppercase tracking-wide font-bold">Goals</div>
                         <div class="text-xs font-bold text-slate-300">${pred.ouLean}</div>
                     </div>
+                    ${histBtn}
                 </div>
             </div>`;
         }
@@ -963,6 +990,108 @@
                     <span class="text-[9px] text-green-500 font-semibold">▌ Advance to Round of 32</span>
                 </div>
             </div>`;
+        }
+
+        // ─── H2H PANEL ───────────────────────────────────────────────────────────
+
+        async function openH2H(teamId, opponentId, teamName, oppName, league) {
+            const panel   = document.getElementById('h2h-panel');
+            const overlay = document.getElementById('h2h-overlay');
+            const title   = document.getElementById('h2h-title');
+            const content = document.getElementById('h2h-content');
+
+            title.textContent   = `${teamName} vs ${oppName}`;
+            content.innerHTML   = `<div class="text-slate-600 text-sm text-center py-16">Loading match history…</div>`;
+            overlay.classList.remove('hidden');
+            panel.classList.remove('translate-x-full');
+
+            try {
+                const res  = await fetch(`/api/soccer-h2h?teamId=${encodeURIComponent(teamId)}&opponentId=${encodeURIComponent(opponentId)}&league=${encodeURIComponent(league)}`);
+                const data = await res.json();
+                renderH2H(data, teamName, oppName);
+            } catch (err) {
+                content.innerHTML = `<div class="text-slate-600 text-sm text-center py-16">Failed to load history<br><span class="text-slate-700 text-xs">${err.message}</span></div>`;
+            }
+        }
+
+        function closeH2H() {
+            document.getElementById('h2h-panel').classList.add('translate-x-full');
+            document.getElementById('h2h-overlay').classList.add('hidden');
+        }
+
+        function renderH2H({ matches, record, error }, teamName, oppName) {
+            const content = document.getElementById('h2h-content');
+
+            if (!matches || (!matches.length && !error)) {
+                content.innerHTML = `
+                    <div class="text-center py-10">
+                        <div class="text-3xl mb-3">📊</div>
+                        <p class="text-slate-500 text-sm font-semibold">${teamName} vs ${oppName}</p>
+                        <p class="text-slate-700 text-xs mt-2">No meetings found in ESPN's records for this competition.<br>These teams may not have faced each other recently.</p>
+                    </div>`;
+                return;
+            }
+
+            if (error && !matches.length) {
+                content.innerHTML = `<div class="text-slate-600 text-sm text-center py-10">${error}</div>`;
+                return;
+            }
+
+            const { w, d, l } = record || { w: 0, d: 0, l: 0 };
+            const total = w + d + l;
+            const wPct  = total ? Math.round(w / total * 100) : 0;
+
+            let html = `
+                <!-- Record summary -->
+                <div class="grid grid-cols-3 gap-3 mb-5">
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-black text-emerald-400">${w}</div>
+                        <div class="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Wins</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-black text-amber-400">${d}</div>
+                        <div class="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Draws</div>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-black text-rose-400">${l}</div>
+                        <div class="text-[10px] text-slate-500 font-bold uppercase mt-0.5">Losses</div>
+                    </div>
+                </div>
+
+                <!-- Win % bar -->
+                <div class="flex h-2 rounded-full overflow-hidden mb-1">
+                    <div class="bg-emerald-500" style="width:${wPct}%"></div>
+                    <div class="bg-amber-500" style="width:${total ? Math.round(d/total*100) : 0}%"></div>
+                    <div class="bg-rose-500" style="flex:1"></div>
+                </div>
+                <p class="text-[10px] text-slate-600 mb-5">from <span class="text-slate-400 font-semibold">${teamName}</span>'s perspective · ${total} match${total !== 1 ? 'es' : ''}</p>
+
+                <!-- Match list -->
+                <div class="space-y-2">`;
+
+            matches.forEach(m => {
+                const rc = m.result === 'W' ? '#22c55e' : m.result === 'L' ? '#ef4444' : '#f59e0b';
+                const rl = m.result || '–';
+                const ds = m.date
+                    ? new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : '—';
+                const scoreStr = m.state === 'post'
+                    ? `${m.home.score} – ${m.away.score}`
+                    : m.status || 'Sched.';
+
+                html += `
+                    <div class="flex items-center gap-3 bg-slate-900 border border-slate-800/60 rounded-lg px-3 py-2.5">
+                        <div class="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black" style="background:${rc}22;color:${rc}">${rl}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm font-semibold text-slate-200 truncate">${m.home.name} <span class="text-slate-600 font-normal text-xs">vs</span> ${m.away.name}</div>
+                            <div class="text-[10px] text-slate-600 mt-0.5">${ds} · ${m.competition}</div>
+                        </div>
+                        <div class="shrink-0 text-sm font-black text-slate-300">${scoreStr}</div>
+                    </div>`;
+            });
+
+            html += '</div>';
+            content.innerHTML = html;
         }
 
         // ─── INIT ────────────────────────────────────────────────────────────────

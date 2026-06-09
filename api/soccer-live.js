@@ -16,6 +16,7 @@ const BASE = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 
 function parseTeam(c) {
     return {
+        id:     c.team?.id || null,
         name:   c.team?.shortDisplayName || c.team?.displayName || '—',
         abbrev: c.team?.abbreviation || '—',
         logo:   c.team?.logo || null,
