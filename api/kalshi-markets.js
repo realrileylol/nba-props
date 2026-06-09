@@ -111,7 +111,10 @@ function getHeaders() {
 async function fetchPage(cursor) {
     const params = new URLSearchParams({ status: 'open', limit: '200' });
     if (cursor) params.set('cursor', cursor);
-    const r = await fetch(`${KALSHI_BASE}/markets?${params}`, { headers: getHeaders() });
+    const r = await fetch(`${KALSHI_BASE}/markets?${params}`, {
+        headers: getHeaders(),
+        signal: AbortSignal.timeout(7000),
+    });
     if (!r.ok) {
         const body = await r.text().catch(() => '');
         throw new Error(`Kalshi ${r.status}: ${body.slice(0, 300)}`);
@@ -135,7 +138,7 @@ module.exports = async (req, res) => {
     try {
         const allRaw = [];
         let cursor = null;
-        for (let page = 0; page < 3; page++) {
+        for (let page = 0; page < 2; page++) {
             const { markets, cursor: next } = await fetchPage(cursor);
             allRaw.push(...markets);
             cursor = next;

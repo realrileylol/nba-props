@@ -14,6 +14,24 @@
 </head>
 <body class="text-slate-200 font-sans antialiased min-h-screen">
 
+    <!-- Login Gate -->
+    <div id="login-gate" class="fixed inset-0 z-[100] flex items-center justify-center" style="background:rgba(8,11,17,0.85);backdrop-filter:blur(16px)">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center">
+            <div class="text-3xl font-black text-white mb-1">🎙</div>
+            <div class="text-lg font-black text-white mb-1">The Booth</div>
+            <div class="text-[11px] text-slate-600 uppercase tracking-widest mb-7">Private Access · Sports Predictions</div>
+            <input id="login-input" type="password" placeholder="Access code"
+                class="w-full bg-slate-800 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm mb-3 outline-none transition-colors text-center tracking-widest"
+                onkeydown="if(event.key==='Enter')checkLogin()">
+            <button onclick="checkLogin()"
+                class="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-black rounded-xl px-4 py-3 text-sm transition-colors">
+                Enter The Booth
+            </button>
+            <div id="login-error" class="text-rose-400 text-xs mt-3 hidden">Incorrect code — try again</div>
+        </div>
+    </div>
+    <script>if(localStorage.getItem('booth-auth')==='1')document.getElementById('login-gate').style.display='none';</script>
+
     <!-- Header -->
     <header class="border-b border-slate-800/60 bg-slate-950/90 backdrop-blur-sm sticky top-0 z-10">
         <div class="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
@@ -41,6 +59,16 @@
             </div>
             <!-- Populated by fetchGameBrief() -->
             <div id="brief-content" class="hidden"></div>
+        </div>
+
+        <!-- ══════════ KALSHI BEST PICKS ══════════ -->
+        <div id="kalshi-best-picks" class="mb-6 hidden">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="w-1 h-3.5 bg-purple-400 rounded-full"></span>
+                <h3 class="text-[11px] font-bold text-purple-400 uppercase tracking-widest">⚡ Kalshi · Today's Best Bets</h3>
+                <span id="picks-ts" class="ml-auto text-[10px] text-slate-700"></span>
+            </div>
+            <div id="picks-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
         </div>
 
         <!-- ══════════ MENTIONS PREDICTIONS ══════════ -->
@@ -1536,6 +1564,87 @@
             content.innerHTML = html;
         }
 
+        // ─── LOGIN ───────────────────────────────────────────────────────────────
+
+        // Change AUTH_CODE below to set your own password
+        const AUTH_CODE = 'thebooth';
+
+        function checkLogin() {
+            const val = (document.getElementById('login-input')?.value || '').trim();
+            if (val === AUTH_CODE) {
+                localStorage.setItem('booth-auth', '1');
+                document.getElementById('login-gate')?.remove();
+            } else {
+                const err = document.getElementById('login-error');
+                if (err) err.classList.remove('hidden');
+                const inp = document.getElementById('login-input');
+                if (inp) { inp.value = ''; inp.focus(); }
+            }
+        }
+
+        // ─── KALSHI BEST PICKS ───────────────────────────────────────────────────
+
+        async function fetchKalshiBestPicks() {
+            try {
+                const res = await fetch('/api/kalshi-markets');
+                const { categories, error, fetchedAt } = await res.json();
+                if (error || !categories?.length) return;
+
+                const all = categories.flatMap(c => c.markets);
+
+                // Best picks: liquid, solid probability (62-88%), single-question markets
+                const picks = all
+                    .filter(m => m.yesPct && (m.volume || 0) > 200)
+                    .filter(m => m.yesPct >= 62 && m.yesPct <= 88)
+                    .sort((a, b) => (b.volume || 0) - (a.volume || 0))
+                    .slice(0, 6);
+
+                if (!picks.length) return;
+
+                picks.forEach(m => { _kalshiData[m.ticker] = m; });
+
+                const grid = document.getElementById('picks-grid');
+                const ts   = document.getElementById('picks-ts');
+                const sect = document.getElementById('kalshi-best-picks');
+                if (!grid || !sect) return;
+
+                const time = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+                if (ts) ts.textContent = `Updated ${time}`;
+
+                const EMOJI = { nba:'🏀', mlb:'⚾', nfl:'🏈', nhl:'🏒', soccer:'⚽', politics:'🏛️', economics:'📈', crypto:'₿', tech:'💻', entertainment:'🎬', other:'📋' };
+
+                grid.innerHTML = picks.map(m => {
+                    const yesOdds = fmtOdds(m.yesOdds ?? toAmOdds(m.yesPct));
+                    const vol     = (m.volume || 0) >= 1000 ? (m.volume/1000).toFixed(1)+'k' : m.volume;
+                    const pct     = m.yesPct || 0;
+                    const catIcon = EMOJI[m.category] || '📋';
+                    const safe    = m.ticker.replace(/[^a-zA-Z0-9]/g, '_');
+                    return `
+                    <div class="bg-slate-900 border border-slate-800 hover:border-purple-900/40 rounded-xl px-3 py-2.5 transition-colors">
+                        <div class="flex items-start gap-1.5 mb-2">
+                            <span class="text-xs shrink-0 mt-px">${catIcon}</span>
+                            <p class="text-xs text-slate-300 font-semibold leading-snug" style="-webkit-line-clamp:2;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden">${m.title}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleReason('${m.ticker}','yes')"
+                                class="flex items-center gap-1.5 bg-green-950/50 border border-green-900/40 hover:bg-green-950/80 rounded-lg px-2 py-1 transition-colors">
+                                <span class="text-[10px] text-green-500 font-bold">YES</span>
+                                <span class="text-sm font-black text-green-300">${yesOdds}</span>
+                                <span class="text-[10px] text-slate-600">💡</span>
+                            </button>
+                            <span class="text-[10px] text-slate-600">${pct}% implied</span>
+                            ${vol ? `<span class="ml-auto text-[10px] text-slate-700">${vol} vol</span>` : ''}
+                        </div>
+                        <div id="reason-${safe}" class="hidden bg-slate-800 border border-slate-700/40 rounded-lg px-3 py-2 text-xs leading-relaxed mt-2"></div>
+                    </div>`;
+                }).join('');
+
+                sect.classList.remove('hidden');
+            } catch (_) {
+                // Best picks are supplementary — fail silently
+            }
+        }
+
         // ─── BROADCAST TEAM ──────────────────────────────────────────────────────
 
         const BROADCAST = {
@@ -1649,6 +1758,7 @@
             selectSport('nba');
             switchTab('g1');
             fetchGameBrief();
+            fetchKalshiBestPicks();
         };
     </script>
 </body>

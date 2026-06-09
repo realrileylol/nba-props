@@ -81,9 +81,15 @@ module.exports = async (req, res) => {
             return true;
         });
 
+        // Drop multi-leg combo/parlay markets (titles with multiple "yes X / no Y" legs)
+        const simple = unique.filter(m => {
+            const legs = ((m.title || '').match(/\b(yes|no)\s+\S/gi) || []).length;
+            return legs <= 1;
+        });
+
         // Prefer markets that look like word/phrase props
         const wordPropTerms = /say|says|word|bang|mention|nba|final|breen|jefferson|legler/i;
-        const sorted = unique.sort((a, b) => {
+        const sorted = simple.sort((a, b) => {
             const aScore = wordPropTerms.test(a.title || '') ? 1 : 0;
             const bScore = wordPropTerms.test(b.title || '') ? 1 : 0;
             return bScore - aScore || (b.volume || 0) - (a.volume || 0);
