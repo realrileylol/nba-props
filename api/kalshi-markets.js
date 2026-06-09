@@ -70,13 +70,11 @@ function inferCategory(m) {
 // Filter out multi-leg combo/parlay markets
 function isSimpleMarket(m) {
     const t = m.title || '';
-    // Multi-leg pattern 1: "yes TeamA, yes TeamB, no Over..." — multiple yes/no conditions
+    // Multiple "yes X / no Y" leg conditions in a single title = parlay
     const legs = (t.match(/\b(yes|no)\s+\S/gi) || []).length;
     if (legs > 1) return false;
-    // Multi-leg pattern 2: title starts with "yes " or "no " (standalone leg, not a question)
-    if (/^(yes|no)\s+/i.test(t)) return false;
-    // Multi-leg pattern 3: suspiciously many commas (4+) suggests a combined market
-    if ((t.match(/,/g) || []).length >= 4) return false;
+    // Extremely long comma-separated conditions (6+ commas) = combined market
+    if ((t.match(/,/g) || []).length >= 6) return false;
     return true;
 }
 

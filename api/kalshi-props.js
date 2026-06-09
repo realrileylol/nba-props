@@ -85,8 +85,7 @@ module.exports = async (req, res) => {
         const simple = unique.filter(m => {
             const t = m.title || '';
             if ((t.match(/\b(yes|no)\s+\S/gi) || []).length > 1) return false;
-            if (/^(yes|no)\s+/i.test(t)) return false;
-            if ((t.match(/,/g) || []).length >= 4) return false;
+            if ((t.match(/,/g) || []).length >= 6) return false;
             return true;
         });
 
