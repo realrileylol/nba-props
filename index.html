@@ -36,6 +36,10 @@
             <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
             <button onclick="switchTab('g2')" id="tab-g2" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 2</button>
             <button onclick="switchTab('g3')" id="tab-g3" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 3</button>
+            <button onclick="switchTab('intel')" id="tab-intel" class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
+                Series Intel
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            </button>
         </div>
 
         <!-- ══════════ GAME 1 ══════════ -->
@@ -153,6 +157,48 @@
             </div>
         </div>
 
+        <!-- ══════════ SERIES INTEL ══════════ -->
+        <div id="view-intel" class="hidden">
+
+            <!-- Summary cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-2xl font-black text-green-400">4</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1">Locks (3/3)</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-2xl font-black text-amber-400">47%</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1">Avg Hit Rate</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-2xl font-black text-red-400">7</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1">Fades (0/3)</div>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
+                    <div class="text-2xl font-black text-slate-300">3</div>
+                    <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1">Games Tracked</div>
+                </div>
+            </div>
+
+            <!-- Key insight -->
+            <div class="bg-amber-950/20 border border-amber-900/30 rounded-xl px-4 py-3 mb-7">
+                <p class="text-[11px] text-amber-300 font-bold uppercase tracking-wide mb-1">Trending ▲ for Game 4: Tech/Technical + Overtime</p>
+                <p class="text-xs text-slate-400 leading-relaxed">Both missed G1, both hit G2 and G3. As the series intensifies, late-game tension and extended possessions are becoming the story. Also: Injury/Injured broke its 2-game streak in G3 — worth watching whether it recovers or continues fading.</p>
+            </div>
+
+            <!-- Signal legend -->
+            <div class="flex flex-wrap gap-3 mb-6 text-[11px] font-bold">
+                <span class="flex items-center gap-1.5 text-green-400"><span class="px-1.5 py-0.5 bg-green-900/40 border border-green-800/40 rounded text-[10px]">LOCK</span> 3 for 3</span>
+                <span class="flex items-center gap-1.5 text-amber-400"><span class="px-1.5 py-0.5 bg-amber-900/40 border border-amber-800/40 rounded text-[10px]">LEAN YES</span> 2 for 3</span>
+                <span class="flex items-center gap-1.5 text-orange-400"><span class="px-1.5 py-0.5 bg-orange-900/40 border border-orange-800/40 rounded text-[10px]">WATCH</span> Notable pattern</span>
+                <span class="flex items-center gap-1.5 text-slate-400"><span class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-[10px]">LEAN NO</span> 1 for 3</span>
+                <span class="flex items-center gap-1.5 text-red-400"><span class="px-1.5 py-0.5 bg-red-900/30 border border-red-900/40 rounded text-[10px]">FADE</span> 0 for 3</span>
+            </div>
+
+            <!-- Tiered rows rendered by JS -->
+            <div id="intel-board"></div>
+        </div>
+
     </div>
 
     <footer class="max-w-5xl mx-auto px-4 py-8 mt-4 border-t border-slate-900 text-center text-[11px] text-slate-700">
@@ -202,7 +248,7 @@
         // ─── TABS ───────────────────────────────────────────────────────────────
 
         function switchTab(tab) {
-            ['g1', 'g2', 'g3'].forEach(t => {
+            ['g1', 'g2', 'g3', 'intel'].forEach(t => {
                 document.getElementById('view-' + t).classList.add('hidden');
                 const btn = document.getElementById('tab-' + t);
                 btn.classList.remove('bg-slate-700', 'text-white');
@@ -248,12 +294,112 @@
             game3Misses.forEach(w => m.innerHTML += resultRow(w, false));
         }
 
+        // ─── SERIES INTEL ────────────────────────────────────────────────────────
+
+        // g1/g2/g3: "hit" | "miss" | "na" (not on board that game)
+        const seriesIntel = [
+            // ── LOCKS: 3/3 ────────────────────────────────────────────────────────
+            { word: "Ankle",            g1:"hit",  g2:"hit",  g3:"hit",  signal:"lock",     reason:"Hit every game. Ankle refs are unavoidable — halftime reports, replays, foul situations. Automatic." },
+            { word: "Clutch",           g1:"hit",  g2:"hit",  g3:"hit",  signal:"lock",     reason:"Hit every game. Jefferson uses this word multiple times per broadcast regardless of score. Treat it as a given." },
+            { word: "Momentum",         g1:"hit",  g2:"hit",  g3:"hit",  signal:"lock",     reason:"Hit every game. Jefferson's most-used analytical word — he literally cannot stop himself. Near-guaranteed." },
+            { word: "MVP",              g1:"hit",  g2:"hit",  g3:"hit",  signal:"lock",     reason:"Hit every game. The Finals MVP narrative runs the entire series. Breen opens with it, closes with it, brings it up in timeouts." },
+            // ── LEAN YES: 2/3 trending ────────────────────────────────────────────
+            { word: "Tech / Technical", g1:"miss", g2:"hit",  g3:"hit",  signal:"lean_yes", reason:"Hit last 2 straight. Trending up as series tensions rise — G4 elimination pressure makes technicals more likely, not less." },
+            { word: "Overtime",         g1:"miss", g2:"hit",  g3:"hit",  signal:"lean_yes", reason:"Hit last 2 straight. These are competitive, close games. The overtime conversation happens even when regulation ends cleanly." },
+            { word: "Sweep / Sweeps / Swept", g1:"hit", g2:"miss", g3:"hit", signal:"lean_yes", reason:"Hit G1 and G3. Series elimination narrative only gets louder as games progress — strong lean for G4." },
+            { word: "Elbow",            g1:"hit",  g2:"miss", g3:"hit",  signal:"lean_yes", reason:"Hit G1 and G3, alternating. Legler references the elbow area in every shooting breakdown — expect it back." },
+            { word: "Jordan",           g1:"hit",  g2:"miss", g3:"hit",  signal:"lean_yes", reason:"Hit G1 and G3. Breen reaches for Jordan comparisons in clutch moments — Finals intensity keeps this alive." },
+            { word: "Travel / Travels / Traveled", g1:"hit", g2:"miss", g3:"hit", signal:"lean_yes", reason:"Hit G1 and G3. Disputed travel calls are replayed and debated every Finals game." },
+            { word: "Alley-oop",        g1:"hit",  g2:"hit",  g3:"na",   signal:"lean_yes", reason:"Hit G1 and G2, G3 result unclear (possible DNQ). Strong 2-game pattern — Breen's go-to visual exclamation." },
+            { word: "Draft / Drafted",  g1:"hit",  g2:"hit",  g3:"miss", signal:"lean_yes", reason:"Hit G1 and G2 then missed G3. Jefferson's draft backstory references are a series staple — expect a bounce-back." },
+            { word: "Airball / Airballs / Airballed", g1:"hit", g2:"hit", g3:"miss", signal:"lean_yes", reason:"Hit G1 and G2, missed G3. Even one shot short of the rim triggers this. Hard to go 2 straight without it." },
+            // ── WATCH: notable exception ──────────────────────────────────────────
+            { word: "Injury / Injured", g1:"hit",  g2:"hit",  g3:"miss", signal:"watch",    reason:"Hit G1 and G2 then missed G3 for the first time — the most surprising result of the series. Was 95–96% both games. Watch whether injury storylines resurface (probable reports, in-game tweaks)." },
+            { word: "MSG / Madison Square Garden", g1:"na", g2:"na", g3:"hit", signal:"watch", reason:"Only relevant for home games at MSG. If G4 is at MSG, treat this as near-automatic — Breen has called this building his whole career." },
+            // ── LEAN NO: 1/3 ─────────────────────────────────────────────────────
+            { word: "Spike Lee",        g1:"miss", g2:"miss", g3:"hit",  signal:"lean_no",  reason:"Finally hit in G3 at MSG. Only reliable at home games — if G4 is away, fade confidently." },
+            { word: "Trump",            g1:"miss", g2:"miss", g3:"hit",  signal:"lean_no",  reason:"Hit G3 after two misses. Courtside appearances are situational and unpredictable — away games flip the odds." },
+            { word: "Buzzer",           g1:"miss", g2:"miss", g3:"hit",  signal:"lean_no",  reason:"Hit G3 after two misses. Entirely game-situation dependent — only fires on buzzer-beaters or last-second shots." },
+            { word: "Highlight",        g1:"hit",  g2:"miss", g3:"miss", signal:"lean_no",  reason:"Hit G1, missed G2 and G3. Surprisingly inconsistent for such a common phrase — something about this broadcast team is avoiding it." },
+            { word: "Popovich",         g1:"hit",  g2:"miss", g3:"miss", signal:"lean_no",  reason:"Hit G1 only. Coaching comparisons faded quickly as the series found its own narrative. Missing last 2." },
+            { word: "Alien",            g1:"miss", g2:"hit",  g3:"miss", signal:"lean_no",  reason:"Sandwiched hit in G2 only. Very specific Legler reference — don't rely on it." },
+            { word: "Zohran / Mamdani", g1:"na",   g2:"na",   g3:"miss", signal:"lean_no",  reason:"Missed G3 debut despite 60% odds. New prop — courtside presence is unconfirmed game-to-game." },
+            // ── FADE: 0/3+ ────────────────────────────────────────────────────────
+            { word: "Career High",      g1:"miss", g2:"miss", g3:"miss", signal:"fade",     reason:"0 for 3. Needs a specific individual performance milestone — hasn't happened in this series." },
+            { word: "GOAT",             g1:"miss", g2:"miss", g3:"miss", signal:"fade",     reason:"0 for 3. GOAT debate lives in pregame media — it's not making it into the live broadcast." },
+            { word: "Kobe",             g1:"miss", g2:"miss", g3:"miss", signal:"fade",     reason:"0 for 3. Historical Kobe tributes aren't surfacing despite 3 opportunities. Safely faded." },
+            { word: "LeBron",           g1:"miss", g2:"miss", g3:"miss", signal:"fade",     reason:"0 for 3. LeBron comparisons not coming up — this series has its own story and Breen isn't reaching for it." },
+            { word: "Retire / Retired / Retirement", g1:"miss", g2:"miss", g3:"miss", signal:"fade", reason:"0 for 3. Not part of any active broadcast narrative. Fade with confidence." },
+            { word: "Triple Double",    g1:"miss", g2:"miss", g3:"miss", signal:"fade",     reason:"0 for 3. Stats-specific — no player in this series is close to a triple double. Not a conversation being had." },
+            { word: "Wingspan",         g1:"miss", g2:"miss", g3:"miss", signal:"fade",     reason:"0 for 3. Legler-specific term that hasn't come up despite 3 full games of opportunities. Telling pattern." },
+        ];
+
+        const signalCfg = {
+            lock:     { label: "LOCK",     color: "#22c55e", bg: "bg-green-900/40",  border: "border-green-800/40",  header: "LOCK — Hit Every Game (3/3)" },
+            lean_yes: { label: "LEAN YES", color: "#f59e0b", bg: "bg-amber-900/30",  border: "border-amber-800/30",  header: "LEAN YES — Hit 2 of 3" },
+            watch:    { label: "WATCH",    color: "#fb923c", bg: "bg-orange-900/30", border: "border-orange-800/30", header: "WATCH — Notable Exception" },
+            lean_no:  { label: "LEAN NO",  color: "#94a3b8", bg: "bg-slate-800",     border: "border-slate-700",     header: "LEAN NO — Hit 1 of 3" },
+            fade:     { label: "FADE",     color: "#ef4444", bg: "bg-red-900/20",    border: "border-red-900/30",    header: "FADE — Missed Every Game (0/3)" },
+        };
+
+        function resultDot(result) {
+            if (result === 'hit')  return `<span class="w-2.5 h-2.5 rounded-full bg-green-400 shrink-0" title="Hit"></span>`;
+            if (result === 'miss') return `<span class="w-2.5 h-2.5 rounded-full bg-red-500/80 shrink-0" title="Miss"></span>`;
+            return                        `<span class="w-2.5 h-2.5 rounded-full bg-slate-700 shrink-0" title="Not on board"></span>`;
+        }
+
+        function renderIntel() {
+            const board = document.getElementById('intel-board');
+            const tierOrder = ['lock', 'lean_yes', 'watch', 'lean_no', 'fade'];
+
+            tierOrder.forEach(signal => {
+                const items = seriesIntel.filter(d => d.signal === signal);
+                if (!items.length) return;
+
+                const cfg = signalCfg[signal];
+
+                const section = document.createElement('div');
+                section.className = 'mb-6';
+                section.innerHTML = `
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="w-1 h-3.5 rounded-full" style="background:${cfg.color}"></span>
+                        <h3 class="text-[11px] font-bold uppercase tracking-widest" style="color:${cfg.color}">${cfg.header}</h3>
+                    </div>`;
+
+                items.forEach(item => {
+                    const hits = [item.g1, item.g2, item.g3].filter(r => r === 'hit').length;
+                    const total = [item.g1, item.g2, item.g3].filter(r => r !== 'na').length;
+                    const rate  = total ? `${hits}/${total}` : '—';
+
+                    const row = document.createElement('div');
+                    row.className = 'bg-slate-900 border border-slate-800 rounded-xl px-4 py-3.5 mb-2';
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="flex-1 text-sm font-semibold text-slate-200">${item.word}</span>
+                            <div class="flex items-center gap-1 shrink-0" title="G1 · G2 · G3">
+                                <span class="text-[9px] text-slate-600 mr-0.5">G1</span>${resultDot(item.g1)}
+                                <span class="text-[9px] text-slate-600 ml-1 mr-0.5">G2</span>${resultDot(item.g2)}
+                                <span class="text-[9px] text-slate-600 ml-1 mr-0.5">G3</span>${resultDot(item.g3)}
+                            </div>
+                            <span class="text-xs font-mono text-slate-500 w-8 text-right shrink-0">${rate}</span>
+                            <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${cfg.bg} border ${cfg.border} shrink-0" style="color:${cfg.color}">${cfg.label}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 leading-relaxed pl-0">${item.reason}</p>
+                    `;
+                    section.appendChild(row);
+                });
+
+                board.appendChild(section);
+            });
+        }
+
         // ─── INIT ────────────────────────────────────────────────────────────────
 
         window.onload = () => {
             renderGame1();
             renderGame2();
             renderGame3();
+            renderIntel();
             switchTab('g1');
         };
     </script>
