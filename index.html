@@ -103,7 +103,7 @@
                     <div class="text-xl mb-2">⚡</div>
                     <div class="text-sm font-black text-white">Kalshi</div>
                     <div class="text-[11px] font-semibold text-purple-400 mt-0.5">All Markets · Live</div>
-                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Sports · Politics · Economics<br>Entertainment · Tech · More</div>
+                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Sports · Politics · Economics<br>Crypto · Live Odds</div>
                 </button>
 
                 <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
@@ -440,7 +440,7 @@
             <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center gap-2">
                     <span class="w-1 h-4 bg-purple-400 rounded-full"></span>
-                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Kalshi · Broadcaster Mentions</span>
+                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Kalshi · Sports · Politics · Economics · Crypto</span>
                 </div>
                 <div class="flex items-center gap-3">
                     <span id="kalshi-mentions-meta" class="text-[10px] text-slate-700"></span>
@@ -1510,8 +1510,8 @@
             } else {
                 pane.innerHTML = `
                     <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-12 text-center">
-                        <p class="text-slate-500 text-sm">No broadcaster mentions markets open on Kalshi right now.</p>
-                        <p class="text-slate-600 text-xs mt-1">Markets typically open 24–48h before tip-off.</p>
+                        <p class="text-slate-500 text-sm">No open markets found across Sports, Politics, Economics, or Crypto.</p>
+                        <p class="text-slate-600 text-xs mt-1">Kalshi may have limited activity right now — try again shortly.</p>
                         <button onclick="fetchMentions(true)" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Refresh</button>
                     </div>`;
             }
