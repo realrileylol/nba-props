@@ -1457,6 +1457,27 @@
             selectKalshiCategory(_kalshiCategories[0].id);
         }
 
+        // Format an event_ticker into a human-readable group label
+        function fmtEventGroup(et) {
+            if (!et) return 'Other Markets';
+            let s = et
+                .replace(/^(KXNBA|KXMLB|KXNFL|KXNHL|KXSOC|KXMLS|KXPOL|KXECON|KXBTC|KXETH|NBAFINALS|INX|FED|CPI|NFP|FOMC|PCE|BTC|ETH|SOL|NBA|MLB|NFL|NHL|FIFA|UEFA|MLS)-?/i, '')
+                .replace(/-/g, ' ')
+                .trim();
+            // Make common shortcodes readable
+            s = s
+                .replace(/\bG(\d+)\b/gi,    'Game $1')
+                .replace(/\bFINALS?\b/gi,   'Finals')
+                .replace(/\bSZN\b/gi,       'Season')
+                .replace(/\bWC\b/gi,        'World Cup')
+                .replace(/\bQF\b/gi,        'Quarterfinals')
+                .replace(/\bSF\b/gi,        'Semifinals')
+                .replace(/\bR(\d+)\b/gi,    'Round $1')
+                .replace(/\bMTG\b/gi,       'Meeting')
+                .replace(/\bRPT\b/gi,       'Report');
+            return s.trim() || et;
+        }
+
         function selectKalshiCategory(catId) {
             _kalshiCategories.forEach(cat => {
                 const btn = document.getElementById('kcat-' + cat.id);
@@ -1474,7 +1495,31 @@
                 pane.innerHTML = `<div class="text-slate-700 text-sm text-center py-10">No open ${cat.label} markets right now.</div>`;
                 return;
             }
-            pane.innerHTML = `<div class="space-y-2">${cat.markets.map(kalshiCard).join('')}</div>`;
+
+            // ── Group markets by event_ticker, preserving order ─────────────────
+            const eventMap  = {};
+            const eventKeys = [];
+            cat.markets.forEach(m => {
+                const key = m.eventTicker || m.seriesTicker || '__other__';
+                if (!eventMap[key]) { eventMap[key] = []; eventKeys.push(key); }
+                eventMap[key].push(m);
+            });
+
+            const html = eventKeys.map(key => {
+                const markets = eventMap[key];
+                const label   = key === '__other__' ? 'Other Markets' : fmtEventGroup(key);
+                return `
+                <div class="mb-7">
+                    <div class="flex items-center gap-2 mb-3 sticky top-0 bg-[#080b11] py-1 z-10">
+                        <span class="w-0.5 h-3.5 bg-slate-700 rounded-full shrink-0"></span>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${label}</span>
+                        <span class="text-[10px] text-slate-800 font-mono">${markets.length}</span>
+                    </div>
+                    <div class="space-y-2">${markets.map(kalshiCard).join('')}</div>
+                </div>`;
+            }).join('');
+
+            pane.innerHTML = html;
         }
 
         // ─── H2H PANEL ───────────────────────────────────────────────────────────

@@ -67,12 +67,17 @@ function inferCategory(m) {
     return (m.category || 'other').toLowerCase();
 }
 
-// Filter out multi-leg combo/parlay markets — those have multiple "yes X, no Y" legs
+// Filter out multi-leg combo/parlay markets
 function isSimpleMarket(m) {
     const t = m.title || '';
-    // Parlay markets have multiple yes/no conditions: "yes TeamA, no TeamB, yes Over..."
+    // Multi-leg pattern 1: "yes TeamA, yes TeamB, no Over..." — multiple yes/no conditions
     const legs = (t.match(/\b(yes|no)\s+\S/gi) || []).length;
-    return legs <= 1;
+    if (legs > 1) return false;
+    // Multi-leg pattern 2: title starts with "yes " or "no " (standalone leg, not a question)
+    if (/^(yes|no)\s+/i.test(t)) return false;
+    // Multi-leg pattern 3: suspiciously many commas (4+) suggests a combined market
+    if ((t.match(/,/g) || []).length >= 4) return false;
+    return true;
 }
 
 function toAmericanOdds(priceCents) {

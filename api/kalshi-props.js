@@ -81,10 +81,13 @@ module.exports = async (req, res) => {
             return true;
         });
 
-        // Drop multi-leg combo/parlay markets (titles with multiple "yes X / no Y" legs)
+        // Drop multi-leg combo/parlay markets
         const simple = unique.filter(m => {
-            const legs = ((m.title || '').match(/\b(yes|no)\s+\S/gi) || []).length;
-            return legs <= 1;
+            const t = m.title || '';
+            if ((t.match(/\b(yes|no)\s+\S/gi) || []).length > 1) return false;
+            if (/^(yes|no)\s+/i.test(t)) return false;
+            if ((t.match(/,/g) || []).length >= 4) return false;
+            return true;
         });
 
         // Prefer markets that look like word/phrase props
