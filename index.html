@@ -10,7 +10,8 @@
         .scrollbar::-webkit-scrollbar { width: 4px; }
         .scrollbar::-webkit-scrollbar-track { background: transparent; }
         .scrollbar::-webkit-scrollbar-thumb { background: #1e2635; border-radius: 4px; }
-        .conf-bar { transition: width 0.4s ease; }
+        .pulse { animation: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
     </style>
 </head>
 <body class="text-slate-200 font-sans antialiased min-h-screen">
@@ -34,12 +35,8 @@
 
         <!-- Tabs -->
         <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit">
-            <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">
-                Game 1
-            </button>
-            <button onclick="switchTab('g2')" id="tab-g2" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">
-                Game 2
-            </button>
+            <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
+            <button onclick="switchTab('g2')" id="tab-g2" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 2</button>
             <button onclick="switchTab('g3')" id="tab-g3" class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
                 Game 3
                 <span class="px-1.5 py-0.5 bg-amber-400 text-slate-900 rounded text-[10px] font-black tracking-wide">TONIGHT</span>
@@ -62,7 +59,6 @@
                     <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Hit Rate</div>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                     <div class="flex items-center gap-2 mb-3">
@@ -97,8 +93,6 @@
                     <div class="text-[11px] text-slate-500 uppercase tracking-widest mt-1.5">Hit Rate</div>
                 </div>
             </div>
-
-            <!-- Pending prop -->
             <div class="mb-5">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
@@ -112,7 +106,6 @@
                     <span class="shrink-0 text-blue-400 text-xs font-bold font-mono">NEW</span>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                     <div class="flex items-center gap-2 mb-3">
@@ -134,40 +127,34 @@
         <!-- ══════════ GAME 3 ══════════ -->
         <div id="view-g3" class="hidden">
 
-            <!-- Disclaimer -->
-            <div class="bg-amber-950/30 border border-amber-900/40 rounded-xl px-4 py-3 mb-7 flex items-start gap-3">
-                <span class="text-amber-400 text-base mt-0.5">⚡</span>
-                <div>
-                    <p class="text-amber-300 text-xs font-bold uppercase tracking-wide mb-0.5">Prediction Board — No Official Lines Yet</p>
-                    <p class="text-amber-200/60 text-xs leading-relaxed">Ranked by likelihood based on Games 1 & 2 outcomes plus Breen, Jefferson & Legler broadcasting tendencies. Not sourced from a live sportsbook.</p>
-                </div>
+            <!-- Live indicator -->
+            <div class="flex items-center gap-2.5 mb-6">
+                <span class="w-2 h-2 rounded-full bg-green-400 pulse"></span>
+                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Active Board · 28 Props · Game 3 Tonight</span>
             </div>
 
-            <!-- Tier: Strong -->
-            <div class="mb-6">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-1 h-3.5 bg-green-400 rounded-full"></span>
-                    <h3 class="text-[11px] font-bold text-green-400 uppercase tracking-widest">Strong Picks — Hit Both Games</h3>
-                </div>
-                <div class="space-y-2" id="g3-strong"></div>
-            </div>
+            <!-- Featured top 4 -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8" id="g3-featured"></div>
 
-            <!-- Tier: Likely -->
-            <div class="mb-6">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="w-1 h-3.5 bg-amber-400 rounded-full"></span>
-                    <h3 class="text-[11px] font-bold text-amber-400 uppercase tracking-widest">Likely — Hit One Game or Strong Context</h3>
-                </div>
-                <div class="space-y-2" id="g3-likely"></div>
-            </div>
-
-            <!-- Tier: Long shot -->
-            <div class="mb-6">
-                <div class="flex items-center gap-2 mb-3">
+            <!-- Full board -->
+            <div>
+                <div class="flex items-center gap-2 mb-4">
                     <span class="w-1 h-3.5 bg-slate-600 rounded-full"></span>
-                    <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Long Shots — Missed Both, Situational</h3>
+                    <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Full Board</h3>
+                    <span class="text-[10px] text-slate-700 font-mono ml-2">G1 · G2 dots show prior results</span>
                 </div>
-                <div class="space-y-2" id="g3-long"></div>
+
+                <!-- Column headers -->
+                <div class="flex items-center gap-3 px-4 pb-2 border-b border-slate-800/60 text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    <span class="flex-1">Word / Phrase</span>
+                    <span class="w-10 text-center hidden sm:block">G1</span>
+                    <span class="w-10 text-center hidden sm:block">G2</span>
+                    <span class="w-16 text-right">Odds</span>
+                    <span class="w-20 text-right">Yes</span>
+                    <span class="w-20 text-right">No</span>
+                </div>
+
+                <div id="g3-board" class="divide-y divide-slate-800/50"></div>
             </div>
         </div>
 
@@ -181,170 +168,64 @@
         // ─── DATA ─────────────────────────────────────────────────────────────
 
         const game1Hits = [
-            "Airball / Airballs / Airballed",
-            "Alley-oop",
-            "Ankle",
-            "Chalamet",
-            "Clutch",
-            "Draft / Drafted",
-            "Elbow",
-            "Highlight",
-            "Injury / Injured",
-            "Jordan",
-            "Momentum",
-            "MVP",
-            "Popovich",
-            "Sweep / Sweeps / Swept",
+            "Airball / Airballs / Airballed", "Alley-oop", "Ankle", "Chalamet",
+            "Clutch", "Draft / Drafted", "Elbow", "Highlight", "Injury / Injured",
+            "Jordan", "Momentum", "MVP", "Popovich", "Sweep / Sweeps / Swept",
             "Travel / Travels / Traveled",
         ];
-
         const game1Misses = [
-            "Alien",
-            "Buzzer",
-            "Career High",
-            "Event Does Not Qualify",
-            "Frost Bank",
-            "GOAT",
-            "Kobe",
-            "LeBron",
-            "Overtime",
-            "Retire / Retired / Retirement",
-            "Spike Lee",
-            "Tech / Technical",
-            "Triple Double",
-            "Trump",
-            "Wingspan",
+            "Alien", "Buzzer", "Career High", "Event Does Not Qualify", "Frost Bank",
+            "GOAT", "Kobe", "LeBron", "Overtime", "Retire / Retired / Retirement",
+            "Spike Lee", "Tech / Technical", "Triple Double", "Trump", "Wingspan",
         ];
-
         const game2Hits = [
-            "Injury / Injured",
-            "Alley-oop",
-            "Draft / Drafted",
-            "MVP",
-            "Clutch",
-            "Ankle",
-            "Momentum",
-            "Tech / Technical",
-            "Overtime",
-            "Airball / Airballs / Airballed",
-            "Alien",
-            "Frost Bank",
+            "Injury / Injured", "Alley-oop", "Draft / Drafted", "MVP", "Clutch",
+            "Ankle", "Momentum", "Tech / Technical", "Overtime",
+            "Airball / Airballs / Airballed", "Alien", "Frost Bank",
         ];
-
         const game2Misses = [
-            "Spike Lee",
-            "Travel / Travels / Traveled",
-            "Elbow",
-            "Trump",
-            "Sweep / Sweeps / Swept",
-            "Jordan",
-            "Buzzer",
-            "Popovich",
-            "Career High",
-            "Highlight",
-            "Wingspan",
-            "LeBron",
-            "Triple Double",
-            "Retire / Retired / Retirement",
-            "Kobe",
-            "GOAT",
+            "Spike Lee", "Travel / Travels / Traveled", "Elbow", "Trump",
+            "Sweep / Sweeps / Swept", "Jordan", "Buzzer", "Popovich", "Career High",
+            "Highlight", "Wingspan", "LeBron", "Triple Double",
+            "Retire / Retired / Retirement", "Kobe", "GOAT",
         ];
 
-        // G1/G2 lookup for the prediction badges
-        const g1Set = new Set(game1Hits);
-        const g2Set = new Set(game2Hits);
-
-        // Game 3 predictions
-        // g1/g2: "hit" | "miss" | "na" (not on board that game)
-        const game3Predictions = [
-            // ── Strong: hit both games ──────────────────────────────────────────
-            {
-                word: "Injury / Injured", pct: 95, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. Playoff injury news drives most of the broadcast narrative — near lock.",
-            },
-            {
-                word: "Alley-oop", pct: 93, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. Visual highlight play — Breen calls it every single game.",
-            },
-            {
-                word: "MVP", pct: 91, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. Finals MVP storyline runs the entire series without exception.",
-            },
-            {
-                word: "Draft / Drafted", pct: 90, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. Jefferson constantly references draft history and player origins.",
-            },
-            {
-                word: "Clutch", pct: 89, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. High-leverage Finals possessions make this a given every game.",
-            },
-            {
-                word: "Ankle", pct: 88, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. Ankle injuries and tweaks are the most common injury reference in basketball.",
-            },
-            {
-                word: "Momentum", pct: 87, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. Jefferson's most-used analytical word — appears multiple times per broadcast.",
-            },
-            {
-                word: "Airball / Airballs / Airballed", pct: 84, tier: "strong", g1: "hit", g2: "hit",
-                reason: "Hit both games. Even one missed shot short of the rim guarantees this.",
-            },
-            // ── Likely: hit one game or strong contextual ──────────────────────
-            {
-                word: "Elbow", pct: 74, tier: "likely", g1: "hit", g2: "miss",
-                reason: "Hit G1. Legler references the elbow area constantly in his shooting breakdowns.",
-            },
-            {
-                word: "Jordan", pct: 72, tier: "likely", g1: "hit", g2: "miss",
-                reason: "Hit G1. Breen always draws Jordan comparisons in high-stakes moments — Finals amplifies this.",
-            },
-            {
-                word: "Travel / Travels / Traveled", pct: 68, tier: "likely", g1: "hit", g2: "miss",
-                reason: "Hit G1. Disputed travel calls generate replay discussion every Finals game.",
-            },
-            {
-                word: "Sweep / Sweeps / Swept", pct: 66, tier: "likely", g1: "hit", g2: "miss",
-                reason: "Hit G1. Series elimination/sweep narrative increases in relevance as games progress.",
-            },
-            {
-                word: "Tech / Technical", pct: 65, tier: "likely", g1: "miss", g2: "hit",
-                reason: "Hit G2. Finals intensity rises by Game 3 — technicals become more frequent.",
-            },
-            {
-                word: "Highlight", pct: 63, tier: "likely", g1: "hit", g2: "miss",
-                reason: "Hit G1. Standard broadcast filler — 'that's a highlight reel play' is Breen's go-to.",
-            },
-            {
-                word: "Spike Lee", pct: 60, tier: "likely", g1: "miss", g2: "miss",
-                reason: "Missed both. But if Game 3 is at MSG, cameras cut to him every timeout — it's coming.",
-            },
-            // ── Long shots: missed both, situational ──────────────────────────
-            {
-                word: "Popovich", pct: 44, tier: "long", g1: "hit", g2: "miss",
-                reason: "Hit G1, miss G2. Coaching comparisons fade as the series develops its own story.",
-            },
-            {
-                word: "Trump", pct: 40, tier: "long", g1: "miss", g2: "miss",
-                reason: "Missed both. Courtside appearance is purely situational — elevated if game is at MSG.",
-            },
-            {
-                word: "Overtime", pct: 38, tier: "long", g1: "miss", g2: "hit",
-                reason: "Hit G2. Entirely dependent on game score — no edge to predict.",
-            },
-            {
-                word: "LeBron", pct: 33, tier: "long", g1: "miss", g2: "miss",
-                reason: "Missed both. GOAT-debate references front-loaded to early series, less likely by G3.",
-            },
-            {
-                word: "Buzzer", pct: 28, tier: "long", g1: "miss", g2: "miss",
-                reason: "Missed both. Only fires on buzzer-beaters or last-second shots.",
-            },
-            {
-                word: "Career High", pct: 24, tier: "long", g1: "miss", g2: "miss",
-                reason: "Missed both. Needs a specific player performance milestone to trigger.",
-            },
+        // Game 3 active board — sorted by probability
+        const game3Data = [
+            { word: "Injury / Injured",               chance: 95, change: "▼1",  yes: "-2581", no: "+1772" },
+            { word: "MSG / Madison Square Garden",     chance: 95, change: "",    yes: "-2046", no: "+1462" },
+            { word: "Alley-oop",                       chance: 81, change: "▲4",  yes: "-490",  no: "+373"  },
+            { word: "MVP",                             chance: 80, change: "▲3",  yes: "-430",  no: "+330"  },
+            { word: "Trump",                           chance: 80, change: "▲3",  yes: "-430",  no: "+351"  },
+            { word: "Momentum",                        chance: 79, change: "▲2",  yes: "-405",  no: "+295"  },
+            { word: "Ankle",                           chance: 77, change: "▲8",  yes: "-360",  no: "+295"  },
+            { word: "Clutch",                          chance: 77, change: "▼2",  yes: "-360",  no: "+295"  },
+            { word: "Spike Lee",                       chance: 76, change: "▼8",  yes: "-341",  no: "+279"  },
+            { word: "Elbow",                           chance: 74, change: "",    yes: "-382",  no: "+252"  },
+            { word: "Draft / Drafted",                 chance: 73, change: "▼11", yes: "-306",  no: "+252"  },
+            { word: "Travel / Travels / Traveled",     chance: 73, change: "▼1",  yes: "-323",  no: "+239"  },
+            { word: "Tech / Technical",                chance: 69, change: "▼4",  yes: "-239",  no: "+198"  },
+            { word: "Airball / Airballs / Airballed",  chance: 64, change: "▼2",  yes: "-191",  no: "+158"  },
+            { word: "Sweep / Sweeps / Swept",          chance: 63, change: "",    yes: "-183",  no: "+152"  },
+            { word: "Overtime",                        chance: 62, change: "▼6",  yes: "-191",  no: "+158"  },
+            { word: "Zohran / Mamdani",                chance: 60, change: "▲16", yes: "-161",  no: "+134"  },
+            { word: "Buzzer",                          chance: 58, change: "▲6",  yes: "-149",  no: "+123"  },
+            { word: "Jordan",                          chance: 57, change: "▲7",  yes: "-149",  no: "+123"  },
+            { word: "Popovich",                        chance: 47, change: "▲18", yes: "+105",  no: "-149"  },
+            { word: "Highlight",                       chance: 38, change: "▲9",  yes: "+152",  no: "-183"  },
+            { word: "Career High",                     chance: 38, change: "▲5",  yes: "+152",  no: "-183"  },
+            { word: "Alien",                           chance: 29, change: "▲5",  yes: "+228",  no: "-277"  },
+            { word: "Triple Double",                   chance: 27, change: "▲4",  yes: "+252",  no: "-306"  },
+            { word: "Wingspan",                        chance: 26, change: "▲2",  yes: "+265",  no: "-323"  },
+            { word: "Retire / Retired / Retirement",   chance: 24, change: "▲4",  yes: "+295",  no: "-360"  },
+            { word: "LeBron",                          chance: 19, change: "▼2",  yes: "+398",  no: "-490"  },
+            { word: "GOAT",                            chance: 14, change: "▲2",  yes: "+573",  no: "-720"  },
         ];
+
+        const g1HitSet   = new Set(game1Hits);
+        const g1MissSet  = new Set(game1Misses);
+        const g2HitSet   = new Set(game2Hits);
+        const g2MissSet  = new Set(game2Misses);
 
         // ─── TABS ───────────────────────────────────────────────────────────────
 
@@ -356,84 +237,103 @@
                 btn.classList.add('text-slate-500');
             });
             document.getElementById('view-' + tab).classList.remove('hidden');
-            const activeBtn = document.getElementById('tab-' + tab);
-            activeBtn.classList.add('bg-slate-700', 'text-white');
-            activeBtn.classList.remove('text-slate-500');
+            const active = document.getElementById('tab-' + tab);
+            active.classList.add('bg-slate-700', 'text-white');
+            active.classList.remove('text-slate-500');
         }
 
-        // ─── ROW HELPERS ────────────────────────────────────────────────────────
+        // ─── GAME 1 & 2 ROWS ────────────────────────────────────────────────────
 
-        function hitRow(word, color) {
+        function resultRow(word, hit) {
+            const color = hit ? '#22c55e' : '#ef4444';
+            const label = hit ? 'YES' : 'NO';
             return `<div class="flex items-center justify-between bg-slate-900 border border-slate-800 border-l-2 rounded-lg px-3 py-2.5 gap-3" style="border-left-color:${color}">
                 <span class="text-sm text-slate-200">${word}</span>
-                <span class="shrink-0 text-xs font-bold font-mono" style="color:${color}">${color === '#22c55e' ? 'YES' : 'NO'}</span>
+                <span class="shrink-0 text-xs font-bold font-mono" style="color:${color}">${label}</span>
             </div>`;
         }
 
-        function g1Badge(status) {
-            if (status === 'hit')  return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-900/40 text-green-400 border border-green-800/30">G1 HIT</span>`;
-            if (status === 'miss') return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-900/40 text-red-400 border border-red-800/30">G1 MISS</span>`;
-            return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-600">G1 —</span>`;
-        }
-
-        function g2Badge(status) {
-            if (status === 'hit')  return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-900/40 text-green-400 border border-green-800/30">G2 HIT</span>`;
-            if (status === 'miss') return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-900/40 text-red-400 border border-red-800/30">G2 MISS</span>`;
-            return `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-600">G2 —</span>`;
-        }
-
-        // ─── RENDER GAME 1 ──────────────────────────────────────────────────────
-
         function renderGame1() {
-            const hEl = document.getElementById('g1-hits');
-            const mEl = document.getElementById('g1-misses');
-            game1Hits.forEach(w => hEl.innerHTML += hitRow(w, '#22c55e'));
-            game1Misses.forEach(w => mEl.innerHTML += hitRow(w, '#ef4444'));
+            const h = document.getElementById('g1-hits');
+            const m = document.getElementById('g1-misses');
+            game1Hits.forEach(w   => h.innerHTML += resultRow(w, true));
+            game1Misses.forEach(w => m.innerHTML += resultRow(w, false));
         }
-
-        // ─── RENDER GAME 2 ──────────────────────────────────────────────────────
 
         function renderGame2() {
-            const hEl = document.getElementById('g2-hits');
-            const mEl = document.getElementById('g2-misses');
-            game2Hits.forEach(w => hEl.innerHTML += hitRow(w, '#22c55e'));
-            game2Misses.forEach(w => mEl.innerHTML += hitRow(w, '#ef4444'));
+            const h = document.getElementById('g2-hits');
+            const m = document.getElementById('g2-misses');
+            game2Hits.forEach(w   => h.innerHTML += resultRow(w, true));
+            game2Misses.forEach(w => m.innerHTML += resultRow(w, false));
         }
 
-        // ─── RENDER GAME 3 ──────────────────────────────────────────────────────
+        // ─── GAME 3 ─────────────────────────────────────────────────────────────
 
-        function renderGame3() {
-            const tiers = { strong: 'g3-strong', likely: 'g3-likely', long: 'g3-long' };
-            const tierColor = { strong: '#22c55e', likely: '#f59e0b', long: '#64748b' };
-            const counters = { strong: 0, likely: 0, long: 0 };
+        // Featured: top 4 most notable props for tonight
+        const featuredWords = new Set([
+            "Injury / Injured",
+            "Trump",
+            "Spike Lee",
+            "Zohran / Mamdani",
+        ]);
 
-            game3Predictions.forEach(item => {
-                counters[item.tier]++;
-                const rank = counters[item.tier];
-                const color = tierColor[item.tier];
-                const g1Status = g1Set.has(item.word) ? 'hit' : (game1Misses.includes(item.word) ? 'miss' : 'na');
-                const g2Status = g2Set.has(item.word) ? 'hit' : (game2Misses.includes(item.word) ? 'miss' : 'na');
+        function renderG3Featured() {
+            const el = document.getElementById('g3-featured');
+            game3Data.filter(d => featuredWords.has(d.word)).forEach(item => {
+                const changeCls = item.change.includes('▲') ? 'text-green-400' : item.change.includes('▼') ? 'text-red-400' : '';
+                const isNew = item.word === "Zohran / Mamdani";
+                el.innerHTML += `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col gap-2">
+                        <div class="flex items-start justify-between gap-1">
+                            <div class="text-[11px] text-slate-500 uppercase tracking-wider font-semibold leading-tight">${item.word}</div>
+                            ${isNew ? '<span class="shrink-0 px-1.5 py-0.5 bg-blue-900/40 text-blue-400 border border-blue-800/30 rounded text-[10px] font-bold">NEW</span>' : ''}
+                        </div>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-3xl font-black text-amber-400">${item.chance}%</span>
+                            ${item.change ? `<span class="text-xs font-bold ${changeCls}">${item.change}</span>` : ''}
+                        </div>
+                        <div class="text-[11px] font-mono text-slate-500 border-t border-slate-800 pt-2">
+                            Yes <span class="text-green-400">${item.yes}</span>
+                            &nbsp;·&nbsp;
+                            No <span class="text-red-400">${item.no}</span>
+                        </div>
+                    </div>`;
+            });
+        }
 
+        function priorDot(word, hitSet, missSet) {
+            if (hitSet.has(word))  return `<span class="inline-block w-2 h-2 rounded-full bg-green-400" title="Hit"></span>`;
+            if (missSet.has(word)) return `<span class="inline-block w-2 h-2 rounded-full bg-red-500/70" title="Miss"></span>`;
+            return                        `<span class="inline-block w-2 h-2 rounded-full bg-slate-700" title="Not on board"></span>`;
+        }
+
+        function renderG3Board() {
+            const el = document.getElementById('g3-board');
+            game3Data.forEach((item, i) => {
+                const changeCls = item.change.includes('▲') ? 'text-green-400' : item.change.includes('▼') ? 'text-red-400' : 'text-slate-600';
+                const isNew = item.word === "Zohran / Mamdani";
                 const row = document.createElement('div');
-                row.className = 'bg-slate-900 border border-slate-800 rounded-xl px-4 py-3.5';
+                row.className = 'flex items-center gap-3 px-4 py-3 hover:bg-slate-900/40 transition-colors';
                 row.innerHTML = `
-                    <div class="flex items-center gap-3 mb-2">
-                        <span class="text-[11px] font-black text-slate-600 w-4 shrink-0">${rank}</span>
-                        <span class="text-sm font-semibold text-slate-200 flex-1">${item.word}</span>
-                        <div class="flex items-center gap-1.5 shrink-0">
-                            ${g1Badge(g1Status)}
-                            ${g2Badge(g2Status)}
-                        </div>
-                        <span class="text-lg font-black shrink-0 w-12 text-right" style="color:${color}">${item.pct}%</span>
+                    <span class="text-[11px] text-slate-700 w-5 shrink-0 font-mono">${i + 1}</span>
+                    <span class="flex-1 text-sm text-slate-200 leading-snug">
+                        ${item.word}
+                        ${isNew ? '<span class="ml-1.5 px-1 py-0.5 bg-blue-900/40 text-blue-400 border border-blue-800/30 rounded text-[9px] font-bold align-middle">NEW</span>' : ''}
+                    </span>
+                    <div class="hidden sm:flex items-center justify-center w-10 gap-1">
+                        ${priorDot(item.word, g1HitSet, g1MissSet)}
                     </div>
-                    <div class="pl-7">
-                        <div class="h-1 bg-slate-800 rounded-full mb-2 overflow-hidden">
-                            <div class="h-full rounded-full conf-bar" style="width:${item.pct}%; background:${color}; opacity:0.6;"></div>
-                        </div>
-                        <p class="text-[11px] text-slate-500 leading-relaxed">${item.reason}</p>
+                    <div class="hidden sm:flex items-center justify-center w-10 gap-1">
+                        ${priorDot(item.word, g2HitSet, g2MissSet)}
                     </div>
+                    <div class="flex items-baseline gap-1 w-16 justify-end">
+                        <span class="text-base font-black text-amber-400">${item.chance}%</span>
+                        ${item.change ? `<span class="text-[10px] font-bold ${changeCls}">${item.change}</span>` : ''}
+                    </div>
+                    <span class="font-mono text-green-400 text-xs w-20 text-right">Yes&nbsp;${item.yes}</span>
+                    <span class="font-mono text-red-400 text-xs w-20 text-right">No&nbsp;${item.no}</span>
                 `;
-                document.getElementById(tiers[item.tier]).appendChild(row);
+                el.appendChild(row);
             });
         }
 
@@ -442,7 +342,8 @@
         window.onload = () => {
             renderGame1();
             renderGame2();
-            renderGame3();
+            renderG3Featured();
+            renderG3Board();
             switchTab('g1');
         };
     </script>
