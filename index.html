@@ -31,6 +31,20 @@
 
     <div class="max-w-5xl mx-auto px-4 py-6">
 
+        <!-- ══════════ GAME DAY BRIEF (live) ══════════ -->
+        <div id="game-brief" class="mb-6">
+            <!-- Loading skeleton -->
+            <div id="brief-loading" class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center gap-3">
+                <div class="w-1.5 h-full min-h-8 bg-slate-800 rounded-full shrink-0"></div>
+                <div class="flex-1 space-y-2">
+                    <div class="h-2.5 bg-slate-800 rounded w-1/3 animate-pulse"></div>
+                    <div class="h-2 bg-slate-800 rounded w-1/2 animate-pulse"></div>
+                </div>
+            </div>
+            <!-- Populated by fetchGameBrief() -->
+            <div id="brief-content" class="hidden"></div>
+        </div>
+
         <!-- Tabs -->
         <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit">
             <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
@@ -393,6 +407,100 @@
             });
         }
 
+        // ─── GAME DAY BRIEF ──────────────────────────────────────────────────────
+
+        async function fetchGameBrief() {
+            try {
+                const res  = await fetch('/api/game-brief');
+                const data = await res.json();
+                renderBrief(data);
+            } catch (e) {
+                renderBrief({ game: null, headlines: [], error: e.message });
+            }
+        }
+
+        function renderBrief({ game, headlines, error }) {
+            document.getElementById('brief-loading').classList.add('hidden');
+            const el = document.getElementById('brief-content');
+            el.classList.remove('hidden');
+
+            if (!game && !headlines.length) {
+                el.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center gap-2 text-xs text-slate-600">
+                        <span class="w-1 h-3.5 bg-slate-700 rounded-full shrink-0"></span>
+                        No game scheduled today${error ? ' — ' + error : ''}. Intel signals based on series history.
+                    </div>`;
+                return;
+            }
+
+            const atMSG      = game?.atMSG;
+            const state      = game?.state; // pre | in | post
+            const stateDot   = state === 'in'
+                ? '<span class="w-1.5 h-1.5 rounded-full bg-green-400 inline-block mr-1" style="animation:pulse 1.5s infinite"></span>'
+                : '';
+            const seriesLine = game?.seriesSummary
+                ? `<span class="text-slate-600">·</span> ${game.seriesSummary}` : '';
+
+            // Injury headlines get flagged
+            const injuryItems = headlines.filter(h => h.isInjury).slice(0, 3);
+            const newsItems   = headlines.filter(h => !h.isInjury).slice(0, 3);
+
+            el.innerHTML = `
+                <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+
+                    <!-- Top bar -->
+                    <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800/60">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1 h-3.5 bg-amber-400 rounded-full"></span>
+                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                                ${stateDot}Game Day Brief
+                            </span>
+                        </div>
+                        <button onclick="fetchGameBrief()" class="text-[10px] text-slate-700 hover:text-slate-400 font-mono transition-colors">↻ refresh</button>
+                    </div>
+
+                    <div class="p-4 flex flex-col sm:flex-row gap-4">
+
+                        <!-- Game info -->
+                        <div class="flex-1 min-w-0">
+                            <div class="text-base font-black text-white truncate">${game?.name || 'NBA Game'}</div>
+                            <div class="text-xs text-slate-500 mt-0.5">
+                                ${game?.venue || ''}${game?.city ? ' · ' + game.city : ''}
+                                ${seriesLine}
+                            </div>
+                            <div class="text-xs font-mono text-amber-400/80 mt-1">${game?.status || ''}</div>
+                        </div>
+
+                        <!-- MSG alert — only shown when relevant -->
+                        ${atMSG ? `
+                        <div class="bg-amber-950/30 border border-amber-800/40 rounded-lg px-3 py-2 shrink-0 text-xs">
+                            <div class="font-bold text-amber-300 mb-1">🏟 MSG Home Game</div>
+                            <div class="text-amber-200/50 leading-relaxed">Spike Lee → <span class="text-amber-300 font-semibold">elevated</span><br>Trump → <span class="text-amber-300 font-semibold">elevated</span><br>MSG prop → <span class="text-amber-300 font-semibold">near lock</span></div>
+                        </div>` : `
+                        <div class="bg-slate-800/40 border border-slate-700/40 rounded-lg px-3 py-2 shrink-0 text-xs">
+                            <div class="font-bold text-slate-500 mb-1">Away Game</div>
+                            <div class="text-slate-600 leading-relaxed">Spike Lee → fade<br>Trump → fade<br>MSG prop → N/A</div>
+                        </div>`}
+                    </div>
+
+                    <!-- Headlines -->
+                    ${headlines.length ? `
+                    <div class="px-4 pb-4 border-t border-slate-800/50 pt-3 grid sm:grid-cols-2 gap-x-6 gap-y-1.5">
+                        ${injuryItems.map(h => `
+                            <div class="flex items-start gap-1.5">
+                                <span class="text-red-400 text-[10px] font-bold shrink-0 mt-0.5">INJURY</span>
+                                <span class="text-xs text-slate-400 leading-snug">${h.headline}</span>
+                            </div>`).join('')}
+                        ${newsItems.map(h => `
+                            <div class="flex items-start gap-1.5">
+                                <span class="text-slate-700 text-xs shrink-0 mt-0.5">·</span>
+                                <span class="text-xs text-slate-500 leading-snug">${h.headline}</span>
+                            </div>`).join('')}
+                    </div>` : ''}
+
+                </div>`;
+        }
+
         // ─── INIT ────────────────────────────────────────────────────────────────
 
         window.onload = () => {
@@ -401,6 +509,7 @@
             renderGame3();
             renderIntel();
             switchTab('g1');
+            fetchGameBrief();
         };
     </script>
 </body>
