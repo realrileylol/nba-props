@@ -1,10 +1,10 @@
-// Vercel serverless — Kalshi prediction market data for NBA Finals word props
-// Requires KALSHI_API_KEY env var (get from kalshi.com → Settings → API)
-// Returns open markets matching broadcaster word prop searches
+// Vercel serverless — Kalshi broadcaster mention markets
+// Uses search API for targeted results (reliable) instead of browsing all markets
+// Returns markets grouped by broadcaster: Breen / Jefferson / Legler / General NBA
 
 const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
-function headers() {
+function getHeaders() {
     const key = process.env.KALSHI_API_KEY || '';
     return {
         'Authorization': key.startsWith('Bearer ') ? key : `Bearer ${key}`,
@@ -12,15 +12,17 @@ function headers() {
     };
 }
 
-async function searchMarkets(query, limit = 200) {
-    const url = `${KALSHI_BASE}/markets?status=open&limit=${limit}&search=${encodeURIComponent(query)}`;
-    const res  = await fetch(url, { headers: headers() });
-    if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        throw new Error(`Kalshi ${res.status}: ${body.slice(0, 200)}`);
+// Each search fails silently so one timeout doesn't kill the whole request
+async function searchMarkets(query) {
+    try {
+        const url = `${KALSHI_BASE}/markets?status=open&limit=100&search=${encodeURIComponent(query)}`;
+        const res = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(4500) });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data.markets || data.market_candidates || [];
+    } catch (_) {
+        return [];
     }
-    const data = await res.json();
-    return data.markets || data.market_candidates || [];
 }
 
 function toAmericanOdds(priceCents) {
@@ -37,7 +39,7 @@ function shape(m) {
     return {
         ticker:       m.ticker,
         title:        m.title || m.subtitle || m.ticker,
-        category:     'sports',
+        subtitle:     m.subtitle || null,
         yesOdds:      toAmericanOdds(yesAsk),
         noOdds:       toAmericanOdds(noAsk),
         yesPct:       yesAsk,
@@ -45,66 +47,82 @@ function shape(m) {
         volume:       m.volume        || 0,
         openInterest: m.open_interest || 0,
         closeTime:    m.close_time    || null,
-        status:       m.status,
     };
+}
+
+function detectGroup(m) {
+    const text = `${m.title || ''} ${m.subtitle || ''}`.toLowerCase();
+    if (/breen|bang!?/.test(text))  return 'breen';
+    if (/jefferson/.test(text))     return 'jefferson';
+    if (/legler/.test(text))        return 'legler';
+    return 'general';
 }
 
 module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
-    const apiKey = process.env.KALSHI_API_KEY;
-    if (!apiKey) {
+    if (!process.env.KALSHI_API_KEY) {
         return res.status(200).json({
-            markets: [],
+            groups: [], total: 0,
             error: 'KALSHI_API_KEY not set — add it in Vercel → Project Settings → Environment Variables',
             fetchedAt: new Date().toISOString(),
         });
     }
 
     try {
-        // Pull markets for each broadcaster + general NBA word props
-        const [breens, jeffs, leglers, nbas] = await Promise.all([
+        // 7 parallel searches — all fail silently so partial results still render
+        const results = await Promise.all([
             searchMarkets('Breen'),
-            searchMarkets('Jefferson NBA'),
+            searchMarkets('Jefferson'),
             searchMarkets('Legler'),
+            searchMarkets('say NBA'),
+            searchMarkets('mention NBA'),
             searchMarkets('NBA Finals word'),
+            searchMarkets('NBA word'),
         ]);
-
-        const all = [...breens, ...jeffs, ...leglers, ...nbas];
 
         // Deduplicate by ticker
         const seen = new Set();
-        const unique = all.filter(m => {
+        const all  = results.flat().filter(m => {
             if (seen.has(m.ticker)) return false;
             seen.add(m.ticker);
             return true;
         });
 
-        // Drop multi-leg combo/parlay markets
-        const simple = unique.filter(m => {
+        // Drop obvious multi-leg parlays
+        const simple = all.filter(m => {
             const t = m.title || '';
             if ((t.match(/\b(yes|no)\s+\S/gi) || []).length > 1) return false;
             if ((t.match(/,/g) || []).length >= 6) return false;
             return true;
         });
 
-        // Prefer markets that look like word/phrase props
-        const wordPropTerms = /say|says|word|bang|mention|nba|final|breen|jefferson|legler/i;
-        const sorted = simple.sort((a, b) => {
-            const aScore = wordPropTerms.test(a.title || '') ? 1 : 0;
-            const bScore = wordPropTerms.test(b.title || '') ? 1 : 0;
-            return bScore - aScore || (b.volume || 0) - (a.volume || 0);
+        // Group by broadcaster
+        const GROUPS = {
+            breen:     { id: 'breen',     label: 'Mike Breen',           icon: '🎙', markets: [] },
+            jefferson: { id: 'jefferson', label: 'Richard Jefferson',    icon: '🏀', markets: [] },
+            legler:    { id: 'legler',    label: 'Tim Legler',           icon: '📊', markets: [] },
+            general:   { id: 'general',   label: 'NBA Finals · General', icon: '🏆', markets: [] },
+        };
+
+        simple.forEach(m => {
+            GROUPS[detectGroup(m)].markets.push(shape(m));
         });
 
+        // Sort by volume within each group, drop empty groups
+        const groups = Object.values(GROUPS)
+            .map(g => ({ ...g, markets: g.markets.sort((a, b) => (b.volume || 0) - (a.volume || 0)) }))
+            .filter(g => g.markets.length > 0);
+
         res.status(200).json({
-            markets: sorted.map(shape),
-            total: sorted.length,
+            groups,
+            total: simple.length,
             fetchedAt: new Date().toISOString(),
         });
     } catch (err) {
         res.status(200).json({
-            markets: [],
+            groups: [], total: 0,
             error: err.message,
             fetchedAt: new Date().toISOString(),
         });

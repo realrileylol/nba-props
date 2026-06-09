@@ -440,30 +440,27 @@
             <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center gap-2">
                     <span class="w-1 h-4 bg-purple-400 rounded-full"></span>
-                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Kalshi · All Prediction Markets</span>
+                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Kalshi · Broadcaster Mentions</span>
                 </div>
-                <button onclick="fetchAllKalshi(true)"
-                    class="text-xs text-slate-600 hover:text-slate-300 transition-colors flex items-center gap-1 font-semibold px-2 py-1 hover:bg-slate-800 rounded-lg">
-                    ↺ Refresh
-                </button>
+                <div class="flex items-center gap-3">
+                    <span id="kalshi-mentions-meta" class="text-[10px] text-slate-700"></span>
+                    <button onclick="fetchMentions(true)"
+                        class="text-xs text-slate-600 hover:text-slate-300 transition-colors flex items-center gap-1 font-semibold px-2 py-1 hover:bg-slate-800 rounded-lg">
+                        ↺ Refresh
+                    </button>
+                </div>
             </div>
 
             <!-- Key legend -->
-            <div class="flex flex-wrap gap-4 mb-4 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">
-                <span>💡 = tap YES or NO for reasoning</span>
+            <div class="flex flex-wrap gap-4 mb-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">
+                <span>💡 Tap YES or NO for reasoning</span>
                 <span class="text-green-700">Positive = underdog odds</span>
                 <span class="text-rose-700">Negative = favorite odds</span>
             </div>
 
-            <!-- Category tabs — built by renderAllKalshi() -->
-            <div id="kalshi-cat-tabs" class="flex gap-2 flex-wrap mb-4"></div>
-
-            <!-- Meta: total markets, timestamp -->
-            <div id="kalshi-all-meta" class="text-[10px] text-slate-700 mb-3"></div>
-
-            <!-- Market grid — built by selectKalshiCategory() -->
-            <div id="kalshi-all-pane">
-                <div class="text-slate-700 text-sm text-center py-16">Loading all Kalshi markets…</div>
+            <!-- Populated by fetchMentions() / renderMentions() -->
+            <div id="kalshi-mentions-pane">
+                <div class="text-slate-700 text-sm text-center py-16">Loading broadcaster mentions…</div>
             </div>
         </div>
 
@@ -580,7 +577,7 @@
                 if (pane) pane.classList.toggle('hidden', s !== sport);
             });
             if (sport === 'soccer' && !currentLeague) selectLeague('world-cup');
-            if (sport === 'kalshi' && !kalshiAllLoaded)  fetchAllKalshi();
+            if (sport === 'kalshi' && !mentionsLoaded) fetchMentions();
             const brief = document.getElementById('game-brief');
             if (brief) brief.classList.toggle('hidden', sport !== 'nba');
         }
@@ -1449,39 +1446,35 @@
             </div>`;
         }
 
-        // ─── KALSHI ALL-MARKETS ──────────────────────────────────────────────────
+        // ─── KALSHI MENTIONS ─────────────────────────────────────────────────────
 
-        let kalshiAllLoaded   = false;
-        let _kalshiCategories = [];
+        let mentionsLoaded = false;
 
-        async function fetchAllKalshi(force = false) {
-            if (kalshiAllLoaded && !force) return;
-            const pane = document.getElementById('kalshi-all-pane');
-            if (pane) pane.innerHTML = '<div class="text-slate-700 text-sm text-center py-16">Loading Kalshi markets…</div>';
+        async function fetchMentions(force = false) {
+            if (mentionsLoaded && !force) return;
+            const pane = document.getElementById('kalshi-mentions-pane');
+            if (pane) pane.innerHTML = '<div class="text-slate-600 text-sm text-center py-16">Loading broadcaster mentions…</div>';
             try {
-                // cache: 'no-store' when forced so the CDN doesn't serve stale data
-                const url  = force ? `/api/kalshi-markets?_t=${Date.now()}` : '/api/kalshi-markets';
+                const url  = force ? `/api/kalshi-props?_t=${Date.now()}` : '/api/kalshi-props';
                 const res  = await fetch(url, { signal: AbortSignal.timeout(12000) });
                 const data = await res.json();
-                renderAllKalshi(data);
-                kalshiAllLoaded = !data.error;
+                renderMentions(data);
+                mentionsLoaded = !data.error;
             } catch (err) {
                 if (pane) pane.innerHTML = `
                     <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-10 text-center">
-                        <p class="text-slate-500 text-sm mb-3">${err.name === 'TimeoutError' ? 'Request timed out — Kalshi API is slow right now.' : 'Failed to load: ' + err.message}</p>
-                        <button onclick="fetchAllKalshi(true)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Try Again</button>
+                        <p class="text-slate-500 text-sm mb-3">${err.name === 'TimeoutError' ? 'Request timed out — try again.' : 'Failed to load: ' + err.message}</p>
+                        <button onclick="fetchMentions(true)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Try Again</button>
                     </div>`;
             }
         }
 
-        function renderAllKalshi({ categories, total, error, fetchedAt }) {
-            const tabs = document.getElementById('kalshi-cat-tabs');
-            const meta = document.getElementById('kalshi-all-meta');
-            const pane = document.getElementById('kalshi-all-pane');
+        function renderMentions({ groups, total, error, fetchedAt }) {
+            const pane = document.getElementById('kalshi-mentions-pane');
+            const meta = document.getElementById('kalshi-mentions-meta');
 
             if (error) {
-                if (tabs) tabs.innerHTML = '';
-                pane.innerHTML = `
+                if (pane) pane.innerHTML = `
                     <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-5 text-center">
                         <p class="text-amber-400 text-sm font-bold mb-1">⚠ Kalshi Not Connected</p>
                         <p class="text-slate-500 text-xs leading-relaxed mb-4">${error}</p>
@@ -1496,54 +1489,35 @@
                 return;
             }
 
-            _kalshiCategories = categories || [];
-            _kalshiCategories.forEach(cat => cat.markets.forEach(m => { _kalshiData[m.ticker] = m; }));
-
             const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
-            if (meta) meta.textContent = `${total || 0} open markets across ${_kalshiCategories.length} categories · updated ${ts}`;
+            if (meta) meta.textContent = `${total || 0} markets · ${ts}`;
 
-            if (!_kalshiCategories.length) {
-                if (tabs) tabs.innerHTML = '';
-                if (pane) pane.innerHTML = `
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-10 text-center">
-                        <p class="text-slate-500 text-sm mb-1">${total > 0 ? `${total} markets loaded but couldn't be sorted into categories.` : 'No open markets available right now.'}</p>
-                        <p class="text-slate-700 text-xs mb-4">This can happen when Kalshi has few active markets or the category patterns need updating.</p>
-                        <button onclick="fetchAllKalshi(true)" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Refresh</button>
+            // Register all markets for reasoning lookups
+            (groups || []).forEach(g => g.markets.forEach(m => { _kalshiData[m.ticker] = m; }));
+
+            if (groups && groups.length) {
+                pane.innerHTML = groups.map(g => `
+                    <div class="mb-5">
+                        <div class="flex items-center gap-2 px-1 mb-2">
+                            <span class="text-base">${g.icon}</span>
+                            <h3 class="text-sm font-black text-white">${g.label}</h3>
+                            <span class="text-[10px] text-slate-600 ml-1">${g.markets.length} market${g.markets.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                            ${g.markets.map(kalshiRow).join('')}
+                        </div>
+                    </div>`).join('');
+            } else {
+                pane.innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-12 text-center">
+                        <p class="text-slate-500 text-sm">No broadcaster mentions markets open on Kalshi right now.</p>
+                        <p class="text-slate-600 text-xs mt-1">Markets typically open 24–48h before tip-off.</p>
+                        <button onclick="fetchMentions(true)" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Refresh</button>
                     </div>`;
-                return;
             }
-
-            if (tabs) {
-                tabs.innerHTML = _kalshiCategories.map(cat => `
-                    <button id="kcat-${cat.id}" onclick="selectKalshiCategory('${cat.id}')"
-                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-900 text-slate-500 border border-slate-800 hover:text-white whitespace-nowrap">
-                        ${cat.label} <span class="text-slate-700 ml-0.5">${cat.total}</span>
-                    </button>`).join('');
-            }
-
-            selectKalshiCategory(_kalshiCategories[0].id);
         }
 
-        // Format an event_ticker into a readable label (fallback when no API title)
-        function fmtEventGroup(et) {
-            if (!et) return 'Other Markets';
-            let s = et
-                .replace(/^(KXNBA|KXMLB|KXNFL|KXNHL|KXSOC|KXMLS|KXPOL|KXECON|KXBTC|KXETH|NBAFINALS|INX|FED|CPI|NFP|FOMC|PCE|BTC|ETH|SOL|NBA|MLB|NFL|NHL|FIFA|UEFA|MLS)-?/i, '')
-                .replace(/-/g, ' ')
-                .trim();
-            s = s
-                .replace(/\bG(\d+)\b/gi,  'Game $1')
-                .replace(/\bFINALS?\b/gi, 'Finals')
-                .replace(/\bWC\b/gi,      'World Cup')
-                .replace(/\bQF\b/gi,      'Quarterfinals')
-                .replace(/\bSF\b/gi,      'Semifinals')
-                .replace(/\bR(\d+)\b/gi,  'Round $1')
-                .replace(/\bMTG\b/gi,     'Meeting')
-                .replace(/\bRPT\b/gi,     'Report');
-            return s.trim() || et;
-        }
-
-        // Kalshi-style compact market row — used inside event group containers
+        // Kalshi-style compact market row
         function kalshiRow(m) {
             const yesOdds = fmtOdds(m.yesOdds ?? toAmOdds(m.yesPct));
             const noOdds  = fmtOdds(m.noOdds  ?? toAmOdds(m.noPct));
@@ -1575,54 +1549,6 @@
                 </div>
                 <div id="reason-${safe}" class="hidden border-t border-slate-800/40 bg-slate-800/40 px-4 py-2.5 text-xs text-slate-400 leading-relaxed"></div>
             </div>`;
-        }
-
-        function selectKalshiCategory(catId) {
-            _kalshiCategories.forEach(cat => {
-                const btn = document.getElementById('kcat-' + cat.id);
-                if (!btn) return;
-                const active = cat.id === catId;
-                btn.classList.toggle('bg-slate-700', active);
-                btn.classList.toggle('text-white',   active);
-                btn.classList.toggle('bg-slate-900', !active);
-                btn.classList.toggle('text-slate-500', !active);
-            });
-            const cat  = _kalshiCategories.find(c => c.id === catId);
-            const pane = document.getElementById('kalshi-all-pane');
-            if (!cat || !pane) return;
-            if (!cat.markets.length) {
-                pane.innerHTML = `<div class="text-slate-700 text-sm text-center py-10">No open ${cat.label} markets right now.</div>`;
-                return;
-            }
-
-            // Group by event_ticker, preserving volume-sorted order
-            const eventMap  = {};
-            const eventKeys = [];
-            cat.markets.forEach(m => {
-                const key = m.eventTicker || m.seriesTicker || '__other__';
-                if (!eventMap[key]) { eventMap[key] = []; eventKeys.push(key); }
-                eventMap[key].push(m);
-            });
-
-            const html = eventKeys.map(key => {
-                const markets   = eventMap[key];
-                // Use real Kalshi event title from API, fall back to formatted ticker
-                const label     = key === '__other__' ? 'Other Markets' : (markets[0]?.eventTitle || fmtEventGroup(key));
-                const closeStr  = markets[0]?.closeTime ? fmtCloseTime(markets[0].closeTime) : '';
-                return `
-                <div class="mb-3 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                    <div class="flex items-center justify-between px-4 py-2.5 bg-slate-800/60 border-b border-slate-800">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="text-xs font-bold text-white truncate">${label}</span>
-                            <span class="text-[10px] text-slate-600 font-mono shrink-0">${markets.length}</span>
-                        </div>
-                        ${closeStr ? `<span class="text-[10px] text-slate-600 shrink-0 ml-3">${closeStr}</span>` : ''}
-                    </div>
-                    <div>${markets.map(kalshiRow).join('')}</div>
-                </div>`;
-            }).join('');
-
-            pane.innerHTML = html;
         }
 
         // ─── H2H PANEL ───────────────────────────────────────────────────────────
