@@ -97,10 +97,14 @@
             </div>
 
         <!-- Tabs -->
-        <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit">
+        <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit flex-wrap">
             <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
             <button onclick="switchTab('g2')" id="tab-g2" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 2</button>
             <button onclick="switchTab('g3')" id="tab-g3" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 3</button>
+            <button onclick="switchTab('g4')" id="tab-g4" class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
+                Game 4
+                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+            </button>
             <button onclick="switchTab('intel')" id="tab-intel" class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
                 Series Intel
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
@@ -219,6 +223,36 @@
                     </div>
                     <div class="space-y-1.5" id="g3-misses"></div>
                 </div>
+            </div>
+        </div>
+
+        <!-- ══════════ GAME 4 · KALSHI LIVE LINES ══════════ -->
+        <div id="view-g4" class="hidden">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-6">
+                <div>
+                    <div class="flex items-center gap-2 mb-0.5">
+                        <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                        <h3 class="text-[11px] font-bold text-green-400 uppercase tracking-widest">Game 4 · Kalshi Live Lines</h3>
+                    </div>
+                    <p class="text-xs text-slate-600">Live prediction market prices — refreshes every 30s</p>
+                </div>
+                <button onclick="fetchKalshiProps()" id="kalshi-refresh-btn"
+                    class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg text-xs font-semibold transition-colors">
+                    ↺ Refresh
+                </button>
+            </div>
+
+            <!-- Key: YES% is implied probability that the word IS said -->
+            <div class="flex items-center gap-4 mb-4 text-[10px] text-slate-600 font-semibold uppercase tracking-wide">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-green-700"></span> YES = word said</span>
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded bg-rose-700"></span> NO = word not said</span>
+                <span>Prices in ¢ (100¢ = $1)</span>
+            </div>
+
+            <!-- Markets grid — populated by fetchKalshiProps() -->
+            <div id="kalshi-pane">
+                <div class="text-slate-700 text-sm text-center py-16">Loading Kalshi markets…</div>
             </div>
         </div>
 
@@ -380,7 +414,7 @@
         // ─── TABS ───────────────────────────────────────────────────────────────
 
         function switchTab(tab) {
-            ['g1', 'g2', 'g3', 'intel'].forEach(t => {
+            ['g1', 'g2', 'g3', 'g4', 'intel'].forEach(t => {
                 document.getElementById('view-' + t).classList.add('hidden');
                 const btn = document.getElementById('tab-' + t);
                 btn.classList.remove('bg-slate-700', 'text-white');
@@ -390,6 +424,108 @@
             const active = document.getElementById('tab-' + tab);
             active.classList.add('bg-slate-700', 'text-white');
             active.classList.remove('text-slate-500');
+            // Lazy-load Kalshi on first open
+            if (tab === 'g4' && !kalshiLoaded) fetchKalshiProps();
+        }
+
+        // ─── KALSHI ──────────────────────────────────────────────────────────────
+
+        let kalshiLoaded    = false;
+        let kalshiInterval  = null;
+
+        async function fetchKalshiProps() {
+            const pane = document.getElementById('kalshi-pane');
+            if (!pane) return;
+            try {
+                const res  = await fetch('/api/kalshi-props');
+                const data = await res.json();
+                renderKalshi(data);
+                kalshiLoaded = true;
+                // Auto-refresh every 30 s while tab is in view
+                if (!kalshiInterval) {
+                    kalshiInterval = setInterval(() => {
+                        if (!document.getElementById('view-g4').classList.contains('hidden')) {
+                            fetchKalshiProps();
+                        }
+                    }, 30000);
+                }
+            } catch (err) {
+                pane.innerHTML = `<div class="text-slate-600 text-sm text-center py-12">Failed to load — ${err.message}</div>`;
+            }
+        }
+
+        function renderKalshi({ markets, error, fetchedAt }) {
+            const pane = document.getElementById('kalshi-pane');
+
+            if (error) {
+                pane.innerHTML = `
+                    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-5 text-center mb-4">
+                        <p class="text-amber-400 text-sm font-bold mb-1">⚠ Kalshi Not Connected</p>
+                        <p class="text-slate-500 text-xs leading-relaxed">${error}</p>
+                        <div class="mt-4 bg-slate-800 rounded-lg p-3 text-left text-[11px] text-slate-400 space-y-1">
+                            <p class="font-bold text-slate-300">Setup (takes 2 min):</p>
+                            <p>1. Go to <span class="text-amber-400">kalshi.com → Settings → API</span></p>
+                            <p>2. Generate an API key</p>
+                            <p>3. Add to Vercel: <span class="font-mono text-amber-400">KALSHI_API_KEY = &lt;your key&gt;</span></p>
+                            <p>4. Redeploy and refresh</p>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            if (!markets || !markets.length) {
+                pane.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-10 text-center">
+                    <p class="text-slate-500 text-sm">No open NBA broadcaster word markets found on Kalshi right now.</p>
+                    <p class="text-slate-700 text-xs mt-1">Markets typically open 24–48h before tip-off.</p>
+                </div>`;
+                return;
+            }
+
+            const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+
+            let html = `<div class="text-[10px] text-slate-700 mb-3 text-right">Last updated ${ts} · ${markets.length} markets</div>
+                <div class="space-y-2">`;
+
+            markets.forEach(m => {
+                const yes = m.yesPct ?? m.yesAsk ?? null;
+                const no  = m.noPct  ?? m.noAsk  ?? null;
+                const yesColor = yes != null && yes >= 60 ? '#22c55e' : yes != null && yes >= 40 ? '#f59e0b' : '#ef4444';
+                const noColor  = '#94a3b8';
+
+                const yesBar = yes != null ? yes : 50;
+                const vol    = m.volume ? (m.volume >= 1000 ? (m.volume/1000).toFixed(1) + 'k' : m.volume) : '—';
+
+                html += `
+                <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl px-4 py-3 transition-colors">
+                    <div class="flex items-start justify-between gap-3 mb-2">
+                        <p class="text-sm font-semibold text-slate-200 leading-snug flex-1">${m.title}</p>
+                        <span class="shrink-0 text-[10px] text-slate-600 font-mono">${vol} vol</span>
+                    </div>
+
+                    <!-- Price bar -->
+                    <div class="flex h-1.5 rounded-full overflow-hidden mb-1.5">
+                        <div class="rounded-l-full transition-all" style="width:${yesBar}%;background:${yesColor}22;border:1px solid ${yesColor}44"></div>
+                        <div class="rounded-r-full flex-1" style="background:#ef444422;border:1px solid #ef444444"></div>
+                    </div>
+
+                    <!-- YES / NO prices -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-slate-800/60 rounded-lg px-3 py-2 text-center">
+                            <div class="text-[9px] uppercase tracking-wider text-slate-600 font-bold mb-0.5">YES</div>
+                            <div class="font-black text-sm" style="color:${yesColor}">${yes != null ? yes + '¢' : '—'}</div>
+                            ${m.yesBid != null ? `<div class="text-[9px] text-slate-700 mt-0.5">bid ${m.yesBid}¢</div>` : ''}
+                        </div>
+                        <div class="bg-slate-800/60 rounded-lg px-3 py-2 text-center">
+                            <div class="text-[9px] uppercase tracking-wider text-slate-600 font-bold mb-0.5">NO</div>
+                            <div class="font-black text-sm text-slate-400">${no != null ? no + '¢' : '—'}</div>
+                            ${m.noBid != null ? `<div class="text-[9px] text-slate-700 mt-0.5">bid ${m.noBid}¢</div>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            html += '</div>';
+            pane.innerHTML = html;
         }
 
         // ─── GAME 1 & 2 ROWS ────────────────────────────────────────────────────
