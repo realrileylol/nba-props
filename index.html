@@ -1459,7 +1459,9 @@
             const pane = document.getElementById('kalshi-all-pane');
             if (pane) pane.innerHTML = '<div class="text-slate-700 text-sm text-center py-16">Loading Kalshi markets…</div>';
             try {
-                const res  = await fetch('/api/kalshi-markets', { signal: AbortSignal.timeout(15000) });
+                // cache: 'no-store' when forced so the CDN doesn't serve stale data
+                const url  = force ? `/api/kalshi-markets?_t=${Date.now()}` : '/api/kalshi-markets';
+                const res  = await fetch(url, { signal: AbortSignal.timeout(12000) });
                 const data = await res.json();
                 renderAllKalshi(data);
                 kalshiAllLoaded = !data.error;

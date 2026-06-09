@@ -1,6 +1,11 @@
 // Vercel serverless — Kalshi markets organized by event, matching Kalshi's own layout
 // Fetches event titles from /events endpoint + market prices from /markets endpoint
 // Groups by sport/topic; within each category groups by event_ticker
+//
+// Timing budget: Vercel Hobby = 10s hard limit.
+//   fetchEventTitles: 1 page, 4s timeout  → ≤4s
+//   fetchMarkets:     1 page, 5s timeout  → ≤5s
+//   Both run in parallel                  → ≤5s total, well within limit.
 
 const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
@@ -66,12 +71,9 @@ function inferCategory(m) {
     return (m.category || 'other').toLowerCase();
 }
 
-// Only drop the most obvious multi-leg parlay titles
 function isSimpleMarket(m) {
     const t = m.title || '';
-    // Multiple "yes X / no Y" condition segments = parlay
     if ((t.match(/\b(yes|no)\s+\S/gi) || []).length > 1) return false;
-    // Extremely comma-heavy titles = combined market (7+ commas to be safe)
     if ((t.match(/,/g) || []).length >= 7) return false;
     return true;
 }
@@ -112,57 +114,42 @@ function getHeaders() {
     };
 }
 
-// Fetch event titles from /events endpoint (best-effort — fail silently)
+// Single-page fetch of event titles — best-effort, fails silently (4s budget)
 async function fetchEventTitles() {
     const titleMap = {};
     try {
-        let cursor = null;
-        for (let page = 0; page < 3; page++) {
-            const params = new URLSearchParams({ status: 'open', limit: '200' });
-            if (cursor) params.set('cursor', cursor);
-            const r = await fetch(`${KALSHI_BASE}/events?${params}`, {
-                headers: getHeaders(),
-                signal: AbortSignal.timeout(6000),
-            });
-            if (!r.ok) break;
-            const d = await r.json();
-            const events = d.events || [];
-            events.forEach(e => {
-                if (e.event_ticker && e.title) titleMap[e.event_ticker] = e.title;
-            });
-            cursor = d.cursor;
-            if (!cursor || !events.length) break;
-        }
-    } catch (_) { /* fail silently — titles are supplementary */ }
+        const params = new URLSearchParams({ status: 'open', limit: '200' });
+        const r = await fetch(`${KALSHI_BASE}/events?${params}`, {
+            headers: getHeaders(),
+            signal: AbortSignal.timeout(4000),
+        });
+        if (!r.ok) return titleMap;
+        const d = await r.json();
+        (d.events || []).forEach(e => {
+            if (e.event_ticker && e.title) titleMap[e.event_ticker] = e.title;
+        });
+    } catch (_) { /* supplementary — fail silently */ }
     return titleMap;
 }
 
-// Fetch markets from /markets endpoint
+// Single-page fetch of markets (5s budget — one 200-market page is plenty)
 async function fetchMarkets() {
-    const all = [];
-    let cursor = null;
-    for (let page = 0; page < 2; page++) {
-        const params = new URLSearchParams({ status: 'open', limit: '200' });
-        if (cursor) params.set('cursor', cursor);
-        const r = await fetch(`${KALSHI_BASE}/markets?${params}`, {
-            headers: getHeaders(),
-            signal: AbortSignal.timeout(7000),
-        });
-        if (!r.ok) {
-            const body = await r.text().catch(() => '');
-            throw new Error(`Kalshi ${r.status}: ${body.slice(0, 300)}`);
-        }
-        const d = await r.json();
-        const markets = d.markets || [];
-        all.push(...markets);
-        cursor = d.cursor;
-        if (!cursor || !markets.length) break;
+    const params = new URLSearchParams({ status: 'open', limit: '200' });
+    const r = await fetch(`${KALSHI_BASE}/markets?${params}`, {
+        headers: getHeaders(),
+        signal: AbortSignal.timeout(5000),
+    });
+    if (!r.ok) {
+        const body = await r.text().catch(() => '');
+        throw new Error(`Kalshi ${r.status}: ${body.slice(0, 300)}`);
     }
-    return all;
+    const d = await r.json();
+    return d.markets || [];
 }
 
 module.exports = async (req, res) => {
-    res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=30');
+    // Short cache — fresh data matters; stale-while-revalidate keeps UI snappy
+    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=20');
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     if (!process.env.KALSHI_API_KEY) {
@@ -174,19 +161,15 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Run both fetches in parallel; event titles are best-effort
+        // Both fetches in parallel — combined budget ≤5s (the slower of the two)
         const [eventTitles, allRaw] = await Promise.all([
             fetchEventTitles(),
             fetchMarkets(),
         ]);
 
-        // Filter out obvious multi-leg combo markets
         const filtered = allRaw.filter(isSimpleMarket);
+        const shaped   = filtered.map(m => shapeMarket(m, eventTitles[m.event_ticker] || null));
 
-        // Shape with event titles joined in
-        const shaped = filtered.map(m => shapeMarket(m, eventTitles[m.event_ticker] || null));
-
-        // Group by category
         const grouped = {};
         shaped.forEach(m => {
             const c = m.category;
@@ -211,7 +194,7 @@ module.exports = async (req, res) => {
                 total:   grouped[c].length,
             }));
 
-        // Absolute fallback: show everything in Other if categorization returns nothing
+        // Fallback: if category regex matched nothing, dump everything into Other
         if (!categories.length && shaped.length) {
             categories = [{
                 id: 'other', label: '📋 All Markets',
