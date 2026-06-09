@@ -2,7 +2,7 @@
 // Fetches up to 3 pages (600 markets), converts prices to American odds
 // Requires KALSHI_API_KEY env var
 
-const KALSHI_BASE = 'https://trading-api.kalshi.com/trade-api/v2';
+const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
 const CATEGORY_ORDER = [
     'sports', 'politics', 'economics', 'financials',

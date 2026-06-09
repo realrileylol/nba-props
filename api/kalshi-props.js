@@ -2,7 +2,7 @@
 // Requires KALSHI_API_KEY env var (get from kalshi.com → Settings → API)
 // Returns open markets matching broadcaster word prop searches
 
-const KALSHI_BASE = 'https://trading-api.kalshi.com/trade-api/v2';
+const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
 function headers() {
     const key = process.env.KALSHI_API_KEY || '';
