@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NBA Broadcaster Props Tracker</title>
+    <title>The Booth · Sports Predictions</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #080b11; }
@@ -18,13 +18,11 @@
     <header class="border-b border-slate-800/60 bg-slate-950/90 backdrop-blur-sm sticky top-0 z-10">
         <div class="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
             <div>
-                <h1 class="text-base font-black tracking-tight text-white uppercase">NBA Broadcaster Props</h1>
-                <p class="text-[11px] text-slate-500 mt-0.5">2025 NBA Finals · Word Odds Tracker</p>
+                <h1 class="text-base font-black tracking-tight text-white uppercase">The Booth</h1>
+                <p class="text-[11px] text-slate-500 mt-0.5">Sports Predictions · Live Odds · Broadcaster Props</p>
             </div>
-            <div class="flex gap-1.5 flex-wrap justify-end">
-                <span class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-md text-[11px] font-semibold">Mike Breen</span>
-                <span class="px-2.5 py-1 bg-amber-950/60 text-amber-300 border border-amber-900/50 rounded-md text-[11px] font-semibold">Richard Jefferson</span>
-                <span class="px-2.5 py-1 bg-blue-950/60 text-blue-300 border border-blue-900/50 rounded-md text-[11px] font-semibold">Tim Legler</span>
+            <div class="flex gap-1.5 flex-wrap justify-end items-center">
+                <span class="text-[10px] text-slate-700 font-semibold hidden sm:block">🏀 NBA &nbsp;·&nbsp; ⚽ Soccer &nbsp;·&nbsp; ⚡ Kalshi</span>
             </div>
         </div>
     </header>
@@ -61,7 +59,7 @@
                     <div class="text-xl mb-2">🏀</div>
                     <div class="text-sm font-black text-white">NBA</div>
                     <div class="text-[11px] font-semibold text-amber-400 mt-0.5">2025 Finals · Active</div>
-                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Breen · Jefferson · Legler<br>3 games tracked</div>
+                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Breen · Jefferson · Legler<br>G1–G7 · Word Props</div>
                 </button>
 
                 <button onclick="selectSport('soccer')" id="sport-btn-soccer"
@@ -105,22 +103,30 @@
             </div>
 
         <!-- Tabs -->
-        <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit flex-wrap">
-            <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
-            <button onclick="switchTab('g2')" id="tab-g2" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 2</button>
-            <button onclick="switchTab('g3')" id="tab-g3" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 3</button>
-            <button onclick="switchTab('g4')" id="tab-g4" class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
-                Game 4
-                <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
+        <div class="flex gap-1 mb-6 bg-slate-900 border border-slate-800 p-1 rounded-xl flex-wrap">
+            <button onclick="switchTab('g1')" id="tab-g1" class="px-4 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
+            <button onclick="switchTab('g2')" id="tab-g2" class="px-4 py-2 rounded-lg text-sm font-bold transition-all">Game 2</button>
+            <button onclick="switchTab('g3')" id="tab-g3" class="px-4 py-2 rounded-lg text-sm font-bold transition-all">Game 3</button>
+            <button onclick="switchTab('g4')" id="tab-g4" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5">
+                Game 4 <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></span>
             </button>
-            <button onclick="switchTab('intel')" id="tab-intel" class="px-5 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2">
-                Series Intel
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+            <button onclick="switchTab('g5')" id="tab-g5" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1">
+                Game 5 <span class="text-[9px] text-slate-600 font-normal">if nec.</span>
+            </button>
+            <button onclick="switchTab('g6')" id="tab-g6" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1">
+                Game 6 <span class="text-[9px] text-slate-600 font-normal">if nec.</span>
+            </button>
+            <button onclick="switchTab('g7')" id="tab-g7" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1">
+                Game 7 <span class="text-[9px] text-slate-600 font-normal">if nec.</span>
+            </button>
+            <button onclick="switchTab('intel')" id="tab-intel" class="px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-1.5">
+                Series Intel <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
             </button>
         </div>
 
         <!-- ══════════ GAME 1 ══════════ -->
         <div id="view-g1" class="hidden">
+            <div id="bcast-g1" class="mb-6"></div>
             <div class="grid grid-cols-3 gap-3 mb-8">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
                     <div class="text-3xl font-black text-green-400">15</div>
@@ -155,6 +161,7 @@
 
         <!-- ══════════ GAME 2 ══════════ -->
         <div id="view-g2" class="hidden">
+            <div id="bcast-g2" class="mb-6"></div>
             <div class="grid grid-cols-3 gap-3 mb-8">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
                     <div class="text-3xl font-black text-green-400">12</div>
@@ -202,6 +209,7 @@
 
         <!-- ══════════ GAME 3 ══════════ -->
         <div id="view-g3" class="hidden">
+            <div id="bcast-g3" class="mb-6"></div>
             <div class="grid grid-cols-3 gap-3 mb-8">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 text-center">
                     <div class="text-3xl font-black text-green-400">14</div>
@@ -236,6 +244,7 @@
 
         <!-- ══════════ GAME 4 · KALSHI LIVE LINES ══════════ -->
         <div id="view-g4" class="hidden">
+            <div id="bcast-g4" class="mb-6"></div>
             <!-- Header -->
             <div class="flex items-center justify-between mb-6">
                 <div>
@@ -261,6 +270,42 @@
             <!-- Markets grid — populated by fetchKalshiProps() -->
             <div id="kalshi-pane">
                 <div class="text-slate-700 text-sm text-center py-16">Loading Kalshi markets…</div>
+            </div>
+        </div>
+
+        <!-- ══════════ GAME 5 ══════════ -->
+        <div id="view-g5" class="hidden">
+            <div id="bcast-g5" class="mb-6"></div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl px-6 py-12 text-center">
+                <div class="text-3xl mb-3">🏀</div>
+                <div class="text-base font-black text-white mb-2">Game 5 — If Necessary</div>
+                <div class="inline-block px-2.5 py-1 bg-slate-800 text-slate-500 rounded text-[11px] font-bold mb-4">OKC Hosts · Paycom Center</div>
+                <p class="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">Played if the series isn't decided in 4. Live lines and word prop odds will appear once Game 5 is scheduled on Kalshi.</p>
+                <div class="mt-5 text-[11px] text-slate-700">Series Intel signals from G1–G4 carry over as the base rate</div>
+            </div>
+        </div>
+
+        <!-- ══════════ GAME 6 ══════════ -->
+        <div id="view-g6" class="hidden">
+            <div id="bcast-g6" class="mb-6"></div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl px-6 py-12 text-center">
+                <div class="text-3xl mb-3">🏀</div>
+                <div class="text-base font-black text-white mb-2">Game 6 — If Necessary</div>
+                <div class="inline-block px-2.5 py-1 bg-slate-800 text-slate-500 rounded text-[11px] font-bold mb-4">Knicks Host · Madison Square Garden</div>
+                <p class="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">MSG elimination or closeout game. Spike Lee, Trump, and venue props elevated. Live odds appear once scheduled.</p>
+                <div class="mt-5 text-[11px] text-slate-700">MSG props (Spike Lee, Trump, MSG mention) all elevated at home</div>
+            </div>
+        </div>
+
+        <!-- ══════════ GAME 7 ══════════ -->
+        <div id="view-g7" class="hidden">
+            <div id="bcast-g7" class="mb-6"></div>
+            <div class="bg-slate-900 border border-slate-800 rounded-xl px-6 py-12 text-center">
+                <div class="text-3xl mb-3">🏆</div>
+                <div class="text-base font-black text-white mb-2">Game 7 — If Necessary</div>
+                <div class="inline-block px-2.5 py-1 bg-amber-950/40 text-amber-500 border border-amber-900/30 rounded text-[11px] font-bold mb-4">Winner Take All · OKC Hosts</div>
+                <p class="text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">Championship game. Every announcer prop is at maximum frequency under G7 pressure. All locks from the series expected to hit.</p>
+                <div class="mt-5 text-[11px] text-slate-700">BANG! · Beautiful · Momentum · MVP · Clutch all near-guaranteed in G7</div>
             </div>
         </div>
 
@@ -443,21 +488,29 @@
             });
             if (sport === 'soccer' && !currentLeague) selectLeague('world-cup');
             if (sport === 'kalshi' && !kalshiAllLoaded)  fetchAllKalshi();
+            const brief = document.getElementById('game-brief');
+            if (brief) brief.classList.toggle('hidden', sport !== 'nba');
         }
 
         // ─── TABS ───────────────────────────────────────────────────────────────
 
         function switchTab(tab) {
-            ['g1', 'g2', 'g3', 'g4', 'intel'].forEach(t => {
-                document.getElementById('view-' + t).classList.add('hidden');
+            ['g1', 'g2', 'g3', 'g4', 'g5', 'g6', 'g7', 'intel'].forEach(t => {
+                const view = document.getElementById('view-' + t);
+                if (view) view.classList.add('hidden');
                 const btn = document.getElementById('tab-' + t);
-                btn.classList.remove('bg-slate-700', 'text-white');
-                btn.classList.add('text-slate-500');
+                if (btn) {
+                    btn.classList.remove('bg-slate-700', 'text-white');
+                    btn.classList.add('text-slate-500');
+                }
             });
-            document.getElementById('view-' + tab).classList.remove('hidden');
+            const view = document.getElementById('view-' + tab);
+            if (view) view.classList.remove('hidden');
             const active = document.getElementById('tab-' + tab);
-            active.classList.add('bg-slate-700', 'text-white');
-            active.classList.remove('text-slate-500');
+            if (active) {
+                active.classList.add('bg-slate-700', 'text-white');
+                active.classList.remove('text-slate-500');
+            }
             // Lazy-load Kalshi on first open
             if (tab === 'g4' && !kalshiLoaded) fetchKalshiProps();
         }
@@ -1483,9 +1536,112 @@
             content.innerHTML = html;
         }
 
+        // ─── BROADCAST TEAM ──────────────────────────────────────────────────────
+
+        const BROADCAST = {
+            g1: {
+                venue: 'Paycom Center · Oklahoma City',
+                breen:     'OKC\'s high-volume 3-point offense = high BANG! rate; Jordan comp opportunities all night',
+                jefferson: 'Brunson ISO vs OKC guard rotation is his central debate from tip-off',
+                legler:    'OKC wings & SGA\'s length give Legler rich shooting mechanics material all night',
+            },
+            g2: {
+                venue: 'Paycom Center · Oklahoma City',
+                breen:     'G1 BANG! confirmed — OKC homecourt energy amplifies every big shot call',
+                jefferson: 'Knicks defensive adjustments from G1 dominate his analysis; corner 3 volume under review',
+                legler:    'Knicks 3PT shooting regression after G1 becomes his primary statistical focus',
+            },
+            g3: {
+                venue: 'Madison Square Garden · New York',
+                breen:     'MSG is his career home — expect venue history, Spike Lee, and elevated calls all game',
+                jefferson: 'Knicks desperation on home floor locks in "Clutch" and "Momentum" every possession',
+                legler:    'MSG crowd effect on Brunson\'s isolation efficiency and OKC spot-up shooters',
+            },
+            g4: {
+                venue: 'Madison Square Garden · New York',
+                breen:     'Elimination game peaks his storytelling — sweep call or historic comeback narrative',
+                jefferson: 'Tech/Overtime trending up under maximum pressure; "Clutch" at series-high frequency',
+                legler:    'High-leverage shooting mechanics under elimination pressure his dominant theme',
+            },
+            g5: {
+                venue: 'Paycom Center · Oklahoma City (If Necessary)',
+                breen:     'OKC closeout attempt or Knicks forcing it — every call amplified in closeout setting',
+                jefferson: 'Comeback narrative reshapes his corner 3 and rotation analysis; new momentum story',
+                legler:    'Knicks road shooting mechanics under series pressure his dominant topic',
+            },
+            g6: {
+                venue: 'Madison Square Garden · New York (If Necessary)',
+                breen:     'MSG do-or-die energy — his most explosive performance of any Finals series',
+                jefferson: '"Clutch" and "Momentum" at absolute series-high; elimination language every quarter',
+                legler:    'High-leverage catch-and-shoot breakdown all four quarters; season-on-line pressure',
+            },
+            g7: {
+                venue: 'Paycom Center · Oklahoma City (If Necessary)',
+                breen:     'Winner-take-all — every BANG! and Beautiful call exponentially amplified; career moment',
+                jefferson: 'Championship pressure analytics peak: corner 3s and momentum in G7 his defining topic',
+                legler:    'G7 catch-and-shoot under championship pressure — maximum analysis, all props elevated',
+            },
+        };
+
+        function renderAnnouncerPanel(gameId) {
+            const el = document.getElementById('bcast-' + gameId);
+            if (!el) return;
+            const d = BROADCAST[gameId];
+            if (!d) return;
+            el.innerHTML = `
+                <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                    <div class="px-4 py-2.5 border-b border-slate-800 flex items-center justify-between gap-2">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">📺 Broadcast Team · ABC/ESPN</span>
+                        <span class="text-[10px] text-slate-700 text-right">${d.venue}</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
+                        <div class="p-3.5">
+                            <div class="flex items-center gap-1.5 mb-2.5">
+                                <span class="text-[9px] px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded font-bold uppercase tracking-wide">PxP</span>
+                                <span class="text-sm font-black text-white">Mike Breen</span>
+                            </div>
+                            <ul class="space-y-1 text-[11px] text-slate-500 mb-3">
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>"BANG!" — signature big 3-pointer call</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>"Beautiful" — team ball movement</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Historical Jordan comparisons</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Series narrative framing</li>
+                            </ul>
+                            <div class="text-[10px] text-amber-500 leading-snug font-medium">⚡ ${d.breen}</div>
+                        </div>
+                        <div class="p-3.5">
+                            <div class="flex items-center gap-1.5 mb-2.5">
+                                <span class="text-[9px] px-1.5 py-0.5 bg-amber-950/60 text-amber-500 border border-amber-900/40 rounded font-bold uppercase tracking-wide">Analyst</span>
+                                <span class="text-sm font-black text-white">R. Jefferson</span>
+                            </div>
+                            <ul class="space-y-1 text-[11px] text-slate-500 mb-3">
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Corner 3 analytics breakdowns</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>"Momentum" — his most-used word</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Defensive rotation critiques</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Draft backstory references</li>
+                            </ul>
+                            <div class="text-[10px] text-amber-500 leading-snug font-medium">⚡ ${d.jefferson}</div>
+                        </div>
+                        <div class="p-3.5">
+                            <div class="flex items-center gap-1.5 mb-2.5">
+                                <span class="text-[9px] px-1.5 py-0.5 bg-blue-950/60 text-blue-400 border border-blue-900/40 rounded font-bold uppercase tracking-wide">Analyst</span>
+                                <span class="text-sm font-black text-white">Tim Legler</span>
+                            </div>
+                            <ul class="space-y-1 text-[11px] text-slate-500 mb-3">
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Shooting mechanics deep dives</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Wingspan &amp; length breakdowns</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>"Alien" — his signature term</li>
+                                <li class="flex gap-1.5"><span class="text-slate-700 shrink-0">·</span>Catch-and-shoot efficiency</li>
+                            </ul>
+                            <div class="text-[10px] text-blue-400 leading-snug font-medium">⚡ ${d.legler}</div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
         // ─── INIT ────────────────────────────────────────────────────────────────
 
         window.onload = () => {
+            ['g1','g2','g3','g4','g5','g6','g7'].forEach(renderAnnouncerPanel);
             renderGame1();
             renderGame2();
             renderGame3();
