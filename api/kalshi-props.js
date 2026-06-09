@@ -23,19 +23,25 @@ async function searchMarkets(query, limit = 200) {
     return data.markets || data.market_candidates || [];
 }
 
+function toAmericanOdds(priceCents) {
+    if (priceCents == null || priceCents <= 0 || priceCents >= 100) return null;
+    const p = priceCents / 100;
+    return p >= 0.5
+        ? Math.round(-(p / (1 - p)) * 100)
+        : Math.round(((1 - p) / p) * 100);
+}
+
 function shape(m) {
-    // Prices are in cents (0–99). Convert to implied probability %.
-    const yesPrice = m.yes_ask ?? m.last_price ?? null;
-    const noPrice  = m.no_ask  ?? (yesPrice != null ? 100 - yesPrice : null);
+    const yesAsk = m.yes_ask ?? null;
+    const noAsk  = m.no_ask  ?? null;
     return {
         ticker:       m.ticker,
         title:        m.title || m.subtitle || m.ticker,
-        yesAsk:       m.yes_ask   ?? null,   // cheapest YES (cents)
-        yesBid:       m.yes_bid   ?? null,   // best buy offer for YES
-        noAsk:        m.no_ask    ?? null,
-        noBid:        m.no_bid    ?? null,
-        yesPct:       yesPrice,              // implied YES probability
-        noPct:        noPrice,
+        category:     'sports',
+        yesOdds:      toAmericanOdds(yesAsk),
+        noOdds:       toAmericanOdds(noAsk),
+        yesPct:       yesAsk,
+        noPct:        noAsk,
         volume:       m.volume        || 0,
         openInterest: m.open_interest || 0,
         closeTime:    m.close_time    || null,

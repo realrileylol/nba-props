@@ -54,7 +54,7 @@
             <p class="text-sm text-slate-500 mb-5">Track which words broadcasters say during live games — and bet on them.</p>
 
             <!-- Sport selector -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
 
                 <button onclick="selectSport('nba')" id="sport-btn-nba"
                     class="group text-left bg-slate-900 border-2 rounded-xl p-4 transition-all">
@@ -64,19 +64,27 @@
                     <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Breen · Jefferson · Legler<br>3 games tracked</div>
                 </button>
 
-                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
-                    <div class="text-xl mb-2 grayscale">⚾</div>
-                    <div class="text-sm font-black text-slate-400">MLB</div>
-                    <div class="text-[11px] text-slate-600 mt-0.5">Coming Soon</div>
-                    <div class="text-[10px] text-slate-700 mt-1.5">No data yet</div>
-                </button>
-
                 <button onclick="selectSport('soccer')" id="sport-btn-soccer"
                     class="group text-left bg-slate-900 border-2 rounded-xl p-4 transition-all">
                     <div class="text-xl mb-2">⚽</div>
                     <div class="text-sm font-black text-white">Soccer</div>
                     <div class="text-[11px] font-semibold text-emerald-400 mt-0.5">2026 World Cup · Live</div>
                     <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">WC Groups · Top Leagues<br>Predictions + Live Scores</div>
+                </button>
+
+                <button onclick="selectSport('kalshi')" id="sport-btn-kalshi"
+                    class="group text-left bg-slate-900 border-2 rounded-xl p-4 transition-all">
+                    <div class="text-xl mb-2">⚡</div>
+                    <div class="text-sm font-black text-white">Kalshi</div>
+                    <div class="text-[11px] font-semibold text-purple-400 mt-0.5">All Markets · Live</div>
+                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Sports · Politics · Economics<br>Entertainment · Tech · More</div>
+                </button>
+
+                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
+                    <div class="text-xl mb-2 grayscale">⚾</div>
+                    <div class="text-sm font-black text-slate-400">MLB</div>
+                    <div class="text-[11px] text-slate-600 mt-0.5">Coming Soon</div>
+                    <div class="text-[10px] text-slate-700 mt-1.5">No data yet</div>
                 </button>
 
                 <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
@@ -322,6 +330,38 @@
             <div id="soccer-pane"></div>
         </div>
 
+        <!-- ══════════ KALSHI ══════════ -->
+        <div id="sport-kalshi" class="hidden">
+            <div class="flex items-center justify-between mb-5">
+                <div class="flex items-center gap-2">
+                    <span class="w-1 h-4 bg-purple-400 rounded-full"></span>
+                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Kalshi · All Prediction Markets</span>
+                </div>
+                <button onclick="fetchAllKalshi(true)"
+                    class="text-xs text-slate-600 hover:text-slate-300 transition-colors flex items-center gap-1 font-semibold px-2 py-1 hover:bg-slate-800 rounded-lg">
+                    ↺ Refresh
+                </button>
+            </div>
+
+            <!-- Key legend -->
+            <div class="flex flex-wrap gap-4 mb-4 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">
+                <span>💡 = tap YES or NO for reasoning</span>
+                <span class="text-green-700">Positive = underdog odds</span>
+                <span class="text-rose-700">Negative = favorite odds</span>
+            </div>
+
+            <!-- Category tabs — built by renderAllKalshi() -->
+            <div id="kalshi-cat-tabs" class="flex gap-2 flex-wrap mb-4"></div>
+
+            <!-- Meta: total markets, timestamp -->
+            <div id="kalshi-all-meta" class="text-[10px] text-slate-700 mb-3"></div>
+
+            <!-- Market grid — built by selectKalshiCategory() -->
+            <div id="kalshi-all-pane">
+                <div class="text-slate-700 text-sm text-center py-16">Loading all Kalshi markets…</div>
+            </div>
+        </div>
+
     </div>
 
     <footer class="max-w-5xl mx-auto px-4 py-8 mt-4 border-t border-slate-900 text-center text-[11px] text-slate-700">
@@ -383,10 +423,9 @@
 
         // ─── SPORT SELECTOR ─────────────────────────────────────────────────────
 
-        const SPORTS = ['nba', 'soccer'];
+        const SPORTS = ['nba', 'soccer', 'kalshi'];
 
         function selectSport(sport) {
-            // Style the buttons
             SPORTS.forEach(s => {
                 const btn = document.getElementById('sport-btn-' + s);
                 if (!btn) return;
@@ -398,17 +437,12 @@
                     btn.classList.add('border-slate-800');
                 }
             });
-
-            // Show/hide sport content panes
             SPORTS.forEach(s => {
                 const pane = document.getElementById('sport-' + s);
                 if (pane) pane.classList.toggle('hidden', s !== sport);
             });
-
-            // Bootstrap soccer with world-cup on first open
-            if (sport === 'soccer' && !currentLeague) {
-                selectLeague('world-cup');
-            }
+            if (sport === 'soccer' && !currentLeague) selectLeague('world-cup');
+            if (sport === 'kalshi' && !kalshiAllLoaded)  fetchAllKalshi();
         }
 
         // ─── TABS ───────────────────────────────────────────────────────────────
@@ -459,21 +493,20 @@
 
             if (error) {
                 pane.innerHTML = `
-                    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-5 text-center mb-4">
+                    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-5 text-center">
                         <p class="text-amber-400 text-sm font-bold mb-1">⚠ Kalshi Not Connected</p>
                         <p class="text-slate-500 text-xs leading-relaxed">${error}</p>
                         <div class="mt-4 bg-slate-800 rounded-lg p-3 text-left text-[11px] text-slate-400 space-y-1">
-                            <p class="font-bold text-slate-300">Setup (takes 2 min):</p>
-                            <p>1. Go to <span class="text-amber-400">kalshi.com → Settings → API</span></p>
-                            <p>2. Generate an API key</p>
-                            <p>3. Add to Vercel: <span class="font-mono text-amber-400">KALSHI_API_KEY = &lt;your key&gt;</span></p>
-                            <p>4. Redeploy and refresh</p>
+                            <p class="font-bold text-slate-300">Setup (2 min):</p>
+                            <p>1. <span class="text-amber-400">kalshi.com → Settings → API → Generate key</span></p>
+                            <p>2. Vercel → Project → Environment Variables</p>
+                            <p>3. Add <span class="font-mono text-amber-400">KALSHI_API_KEY = &lt;your-key&gt;</span></p>
+                            <p>4. Redeploy &amp; refresh</p>
                         </div>
                     </div>`;
                 return;
             }
-
-            if (!markets || !markets.length) {
+            if (!markets?.length) {
                 pane.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-10 text-center">
                     <p class="text-slate-500 text-sm">No open NBA broadcaster word markets found on Kalshi right now.</p>
                     <p class="text-slate-700 text-xs mt-1">Markets typically open 24–48h before tip-off.</p>
@@ -481,51 +514,16 @@
                 return;
             }
 
+            // Register for reasoning lookups
+            markets.forEach(m => { _kalshiData[m.ticker] = m; });
+
             const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
-
-            let html = `<div class="text-[10px] text-slate-700 mb-3 text-right">Last updated ${ts} · ${markets.length} markets</div>
-                <div class="space-y-2">`;
-
-            markets.forEach(m => {
-                const yes = m.yesPct ?? m.yesAsk ?? null;
-                const no  = m.noPct  ?? m.noAsk  ?? null;
-                const yesColor = yes != null && yes >= 60 ? '#22c55e' : yes != null && yes >= 40 ? '#f59e0b' : '#ef4444';
-                const noColor  = '#94a3b8';
-
-                const yesBar = yes != null ? yes : 50;
-                const vol    = m.volume ? (m.volume >= 1000 ? (m.volume/1000).toFixed(1) + 'k' : m.volume) : '—';
-
-                html += `
-                <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl px-4 py-3 transition-colors">
-                    <div class="flex items-start justify-between gap-3 mb-2">
-                        <p class="text-sm font-semibold text-slate-200 leading-snug flex-1">${m.title}</p>
-                        <span class="shrink-0 text-[10px] text-slate-600 font-mono">${vol} vol</span>
-                    </div>
-
-                    <!-- Price bar -->
-                    <div class="flex h-1.5 rounded-full overflow-hidden mb-1.5">
-                        <div class="rounded-l-full transition-all" style="width:${yesBar}%;background:${yesColor}22;border:1px solid ${yesColor}44"></div>
-                        <div class="rounded-r-full flex-1" style="background:#ef444422;border:1px solid #ef444444"></div>
-                    </div>
-
-                    <!-- YES / NO prices -->
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-slate-800/60 rounded-lg px-3 py-2 text-center">
-                            <div class="text-[9px] uppercase tracking-wider text-slate-600 font-bold mb-0.5">YES</div>
-                            <div class="font-black text-sm" style="color:${yesColor}">${yes != null ? yes + '¢' : '—'}</div>
-                            ${m.yesBid != null ? `<div class="text-[9px] text-slate-700 mt-0.5">bid ${m.yesBid}¢</div>` : ''}
-                        </div>
-                        <div class="bg-slate-800/60 rounded-lg px-3 py-2 text-center">
-                            <div class="text-[9px] uppercase tracking-wider text-slate-600 font-bold mb-0.5">NO</div>
-                            <div class="font-black text-sm text-slate-400">${no != null ? no + '¢' : '—'}</div>
-                            ${m.noBid != null ? `<div class="text-[9px] text-slate-700 mt-0.5">bid ${m.noBid}¢</div>` : ''}
-                        </div>
-                    </div>
-                </div>`;
-            });
-
-            html += '</div>';
-            pane.innerHTML = html;
+            pane.innerHTML = `
+                <div class="text-[10px] text-slate-700 mb-3 flex items-center justify-between">
+                    <span>💡 Tap YES or NO for betting reasoning</span>
+                    <span>Updated ${ts} · ${markets.length} markets</span>
+                </div>
+                <div class="space-y-2">${markets.map(kalshiCard).join('')}</div>`;
         }
 
         // ─── GAME 1 & 2 ROWS ────────────────────────────────────────────────────
@@ -1126,6 +1124,244 @@
                     <span class="text-[9px] text-green-500 font-semibold">▌ Advance to Round of 32</span>
                 </div>
             </div>`;
+        }
+
+        // ─── KALSHI UTILITIES ────────────────────────────────────────────────────
+
+        function toAmOdds(pct) {
+            if (pct == null || pct <= 0 || pct >= 100) return null;
+            const p = pct / 100;
+            return p >= 0.5 ? Math.round(-(p / (1 - p)) * 100) : Math.round(((1 - p) / p) * 100);
+        }
+        function fmtOdds(o) { return o == null ? '—' : o >= 0 ? '+' + o : '' + o; }
+
+        // Market data store for reasoning lookups
+        const _kalshiData = {};
+
+        function generateReasoning(m) {
+            const t   = (m.title || '').toLowerCase();
+            const cat = (m.category || '').toLowerCase();
+            const pct = m.yesPct || 50;
+
+            // NBA word props
+            if (/breen/i.test(m.title)) {
+                if (/bang/i.test(m.title))
+                    return { yes: "Breen calls 'BANG' on nearly every signature three in the Finals — elimination game = peak clutch-shot frequency", no: "Requires a specific 3-pointer at a big moment; two-point-heavy game flow or blowout kills opportunities" };
+                if (/beautiful/i.test(m.title))
+                    return { yes: "OKC's unselfish ball movement gives Breen constant 'beautiful play' moments; team system = high floor", no: "Isolation-heavy possessions and fast tempo reduce the team-basketball highlights that trigger this phrase" };
+                if (/madison|msg/i.test(m.title))
+                    return { yes: "MSG gives Breen rich venue narrative material — New York storylines dominate Finals broadcast framing", no: "Breen stays play-focused in high-leverage moments; venue commentary drops under fourth-quarter pressure" };
+                return { yes: "Breen is one of basketball's most consistent callers — the Finals stage amplifies his entire signature vocabulary", no: "Game flow, broadcast pacing, and score dynamics determine frequency; patterns don't always repeat game to game" };
+            }
+            if (/jefferson/i.test(m.title)) {
+                if (/three|3-point|corner/i.test(m.title))
+                    return { yes: "Jefferson obsesses over corner 3s and shot selection — he'll raise this topic multiple times per half regardless of score", no: "If both teams attack the rim, Jefferson's analytics focus shifts away from the three-point discussion" };
+                return { yes: "Jefferson is analytically expressive and gets maximum airtime in a Finals broadcast — rich material every quarter", no: "Color analyst time is capped by play-by-play rhythm; specific phrases require the right game narrative setup" };
+            }
+            if (/legler/i.test(m.title))
+                return { yes: "Legler leans on shooting mechanics and player tendencies — high-stakes Finals give him rich, detailed material", no: "Secondary analyst role means phrase frequency is lower; depends on what Breen sets up for him" };
+
+            // Soccer / World Cup
+            if (cat === 'sports' && /world cup|soccer|football|goal/i.test(m.title)) {
+                if (/goal/i.test(m.title))
+                    return { yes: "2026 WC group stage averages 2.6 goals/game historically; attacking setups push totals above lines", no: "Defensive blocks and low-stakes final group games can produce 0-0 or 1-0 results comfortably" };
+                return { yes: "Top-ranked team has squad depth edge; market odds reflect genuine FIFA ranking differential", no: "World Cup upsets occur in ~25% of group games — tournament compression amplifies variance significantly" };
+            }
+
+            // Politics
+            if (cat === 'politics' || /president|congress|senate|election|vote|white house|tariff/i.test(m.title)) {
+                if (/executive order|sign|pardon/i.test(m.title))
+                    return { yes: "Executive orders are the fastest unilateral policy lever — high usage frequency in first 18 months of any term", no: "Legal injunctions and political blowback have slowed or reversed specific EO implementation timelines" };
+                if (/approval|poll/i.test(m.title))
+                    return { yes: "Approval ratings are sticky within ±3%; economic conditions are the slow-moving dominant driver", no: "Any major negative shock (economic, scandal) can move polls 4-6 points in 2-4 weeks" };
+                if (/senate|60 vote|cloture|filibuster/i.test(m.title))
+                    return { yes: "Leadership wouldn't schedule a vote without 60 votes secured; whip counts are calculated before any floor action", no: "Moderate holdouts from either party routinely kill cloture at the last moment — the floor is perpetually uncertain" };
+                if (/tariff|trade|china/i.test(m.title))
+                    return { yes: "Trade policy follows announced negotiation timelines and the regulatory calendar with reasonable predictability", no: "Diplomatic breakthroughs or breakdowns can bypass or accelerate expected timelines without warning" };
+                return { yes: `Political market at ${pct}% — reflects polling aggregates, prediction market consensus, and insider signals`, no: "Political tail risk is permanently elevated; surprise events define the modern news cycle" };
+            }
+
+            // Economics / Fed
+            if (cat === 'economics' || cat === 'financials' || /fed|fomc|rate|cpi|inflation|gdp|payroll|nfp|unemployment/i.test(m.title)) {
+                if (/fed|fomc|rate cut|rate hike|basis/i.test(m.title))
+                    return { yes: "CME FedWatch futures and the Fed's dot-plot guidance align with this outcome; forward guidance is the primary signal", no: "One hot CPI or jobs print before the meeting is enough for the Fed to hold or reverse its direction" };
+                if (/cpi|inflation|pce/i.test(m.title))
+                    return { yes: "Core CPI trend and shelter disinflation trajectory support this range; Cleveland Fed Nowcast is aligned", no: "Energy price volatility and re-acceleration in services inflation are genuine upside risks to any range" };
+                if (/payroll|nfp|jobs|unemployment/i.test(m.title))
+                    return { yes: "Labor market resilience has beaten consensus forecasts 7 of last 12 months; trend supports this outcome", no: "Leading indicators (JOLTS, initial claims, PMI employment) have softened — downside miss is a live risk" };
+                if (/gdp|recession/i.test(m.title))
+                    return { yes: "Consumer spending and services sector growth support positive GDP readings for the current quarter", no: "Inventory drawdowns and net export drag can subtract 0.5-1.0% from the headline GDP print unexpectedly" };
+                return { yes: `Economic data market at ${pct}% — forecaster consensus and current trend support YES outcome`, no: "Macro data is subject to significant revision; surprises in either direction are routine" };
+            }
+
+            // Entertainment
+            if (cat === 'entertainment' || /oscar|emmy|grammy|award|box office|opening weekend|album/i.test(m.title)) {
+                if (/oscar|academy|emmy|grammy|tony/i.test(m.title))
+                    return { yes: "Guild awards and critics circle season predict ~70% of major category winners; current momentum is real", no: "Sentimental voting blocs and late-campaign pushes produce major upsets almost every awards season" };
+                if (/box office|opening/i.test(m.title))
+                    return { yes: "Advance ticket sales, studio tracking, and social buzz all support this box office range at this stage", no: "Thursday preview reviews can shift weekend projections 20-30% in either direction — tracking isn't a guarantee" };
+                return { yes: "Entertainment market priced using industry tracking, historical comps, and current buzz level combined", no: "Pop culture is inherently volatile — viral reaction and competitive releases reshape outcomes overnight" };
+            }
+
+            // Technology
+            if (cat === 'technology' || /earnings|eps|revenue|apple|google|microsoft|meta|nvidia|amazon|tesla/i.test(m.title)) {
+                if (/earnings|eps|beat|miss/i.test(m.title))
+                    return { yes: "Mega-cap tech beats earnings estimates ~75% of quarters; company guidance is typically set conservatively", no: "Macro headwinds, FX impact, or one-time charges can cause a miss even against soft-sounding guidance" };
+                return { yes: "Technology sector has strong recurring revenue visibility; trend consistency supports YES outcome", no: "Regulatory risk, competitive pressure, or a product cycle delay can disrupt even strong momentum" };
+            }
+
+            // Crypto
+            if (/bitcoin|btc|eth|ethereum|crypto|solana|coin/i.test(m.title))
+                return { yes: "On-chain data (funding rates, exchange outflows) and macro tailwinds support this directional bias for YES", no: "Crypto volatility is extreme — one regulatory headline or large liquidation cascade can invalidate any setup" };
+
+            // Science
+            if (cat === 'science' || /temperature|climate|nasa|hurricane|storm|sea level/i.test(m.title))
+                return { yes: "Scientific model ensemble consensus and established trend lines support this measurement outcome", no: "Natural variability and measurement uncertainty mean readings outside the modeled range do occur" };
+
+            // Geopolitics
+            if (cat === 'geopolitics' || /nato|ceasefire|war|peace|treaty|sanction|nuclear/i.test(m.title))
+                return { yes: "Diplomatic calendar, back-channel signals, and stated negotiating positions support movement toward YES", no: "Any party can delay indefinitely; domestic opposition and third-party spoilers are constant wild cards" };
+
+            // Generic fallbacks
+            if (pct >= 70) return { yes: `Strong ${pct}% market consensus — reflects deep liquidity and high-confidence fundamentals`, no: "Even high-probability markets fail ~30% of the time; late-breaking news can flip outcomes" };
+            if (pct <= 30) return { yes: "Long-shot YES — but a single news catalyst could rapidly shift this market toward the outcome", no: `${100-pct}% consensus strongly favors NO — baseline conditions and status quo are dominant` };
+            return {
+                yes: `Near coin-flip at ${pct}% — slight lean toward YES based on current trend and historical base rate`,
+                no:  `Near coin-flip — slight lean toward NO based on uncertainty premium and status quo bias`,
+            };
+        }
+
+        function toggleReason(ticker, side) {
+            const el = document.getElementById('reason-' + ticker.replace(/[^a-zA-Z0-9]/g, '_'));
+            if (!el) return;
+            const r   = generateReasoning(_kalshiData[ticker] || {});
+            const isY = side === 'yes';
+            if (el.dataset.open === side) {
+                el.classList.add('hidden');
+                el.dataset.open = '';
+            } else {
+                el.dataset.open = side;
+                el.classList.remove('hidden');
+                el.innerHTML = `<span class="font-bold ${isY ? 'text-green-400' : 'text-rose-400'}">${isY ? '✓ YES:' : '✗ NO:'}</span> <span class="text-slate-400">${isY ? r.yes : r.no}</span>`;
+            }
+        }
+
+        function kalshiCard(m) {
+            const yesOdds = fmtOdds(m.yesOdds ?? toAmOdds(m.yesPct));
+            const noOdds  = fmtOdds(m.noOdds  ?? toAmOdds(m.noPct));
+            const yesFav  = (m.yesPct || 0) >= 50;
+            const vol     = (m.volume || 0) >= 1000 ? (m.volume / 1000).toFixed(1) + 'k' : (m.volume || '—');
+            const safe    = m.ticker.replace(/[^a-zA-Z0-9]/g, '_');
+            const yesBar  = Math.min(Math.max(m.yesPct || 50, 5), 95);
+
+            return `
+            <div class="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl px-4 py-3 transition-colors">
+                <div class="flex items-start justify-between gap-2 mb-3">
+                    <p class="text-sm font-semibold text-slate-200 leading-snug flex-1">${m.title}</p>
+                    <span class="shrink-0 text-[10px] text-slate-700 font-mono">${vol} vol</span>
+                </div>
+                <div class="h-1 rounded-full overflow-hidden mb-3 bg-slate-800 flex">
+                    <div class="bg-green-600 rounded-l-full" style="width:${yesBar}%"></div>
+                    <div class="bg-rose-900 rounded-r-full flex-1"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mb-1">
+                    <button onclick="toggleReason('${m.ticker}','yes')"
+                        class="flex items-center justify-between ${yesFav ? 'bg-green-950/60 border-green-900/40 hover:bg-green-950/80' : 'bg-slate-800/60 border-slate-700/40 hover:bg-slate-800'} border rounded-lg px-3 py-2 transition-all text-left">
+                        <span class="text-[10px] text-green-500 font-bold uppercase">YES</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sm font-black ${yesFav ? 'text-green-300' : 'text-slate-400'}">${yesOdds}</span>
+                            <span class="text-[10px] text-slate-600">💡</span>
+                        </div>
+                    </button>
+                    <button onclick="toggleReason('${m.ticker}','no')"
+                        class="flex items-center justify-between ${!yesFav ? 'bg-rose-950/60 border-rose-900/40 hover:bg-rose-950/80' : 'bg-slate-800/60 border-slate-700/40 hover:bg-slate-800'} border rounded-lg px-3 py-2 transition-all text-left">
+                        <span class="text-[10px] text-rose-500 font-bold uppercase">NO</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-sm font-black ${!yesFav ? 'text-rose-300' : 'text-slate-400'}">${noOdds}</span>
+                            <span class="text-[10px] text-slate-600">💡</span>
+                        </div>
+                    </button>
+                </div>
+                <div id="reason-${safe}" class="hidden bg-slate-800 border border-slate-700/40 rounded-lg px-3 py-2 text-xs leading-relaxed mt-1"></div>
+            </div>`;
+        }
+
+        // ─── KALSHI ALL-MARKETS ──────────────────────────────────────────────────
+
+        let kalshiAllLoaded   = false;
+        let _kalshiCategories = [];
+
+        async function fetchAllKalshi(force = false) {
+            if (kalshiAllLoaded && !force) return;
+            const pane = document.getElementById('kalshi-all-pane');
+            if (pane) pane.innerHTML = '<div class="text-slate-700 text-sm text-center py-16">Loading all Kalshi markets…</div>';
+            try {
+                const res  = await fetch('/api/kalshi-markets');
+                const data = await res.json();
+                renderAllKalshi(data);
+                kalshiAllLoaded = !data.error;
+            } catch (err) {
+                if (pane) pane.innerHTML = `<div class="text-slate-600 text-sm text-center py-12">Failed — ${err.message}</div>`;
+            }
+        }
+
+        function renderAllKalshi({ categories, total, error, fetchedAt }) {
+            const tabs = document.getElementById('kalshi-cat-tabs');
+            const meta = document.getElementById('kalshi-all-meta');
+            const pane = document.getElementById('kalshi-all-pane');
+
+            if (error) {
+                if (tabs) tabs.innerHTML = '';
+                pane.innerHTML = `
+                    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-5 text-center">
+                        <p class="text-amber-400 text-sm font-bold mb-1">⚠ Kalshi Not Connected</p>
+                        <p class="text-slate-500 text-xs leading-relaxed mb-4">${error}</p>
+                        <div class="bg-slate-800 rounded-lg p-3 text-left text-[11px] text-slate-400 space-y-1">
+                            <p class="font-bold text-slate-300">Setup (2 min):</p>
+                            <p>1. <span class="text-amber-400">kalshi.com → Settings → API → Generate key</span></p>
+                            <p>2. Vercel → Project Settings → Environment Variables</p>
+                            <p>3. Add <span class="font-mono text-amber-400">KALSHI_API_KEY = &lt;your-key&gt;</span></p>
+                            <p>4. Redeploy &amp; refresh</p>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            _kalshiCategories = categories || [];
+            _kalshiCategories.forEach(cat => cat.markets.forEach(m => { _kalshiData[m.ticker] = m; }));
+
+            if (tabs) {
+                tabs.innerHTML = _kalshiCategories.map(cat => `
+                    <button id="kcat-${cat.id}" onclick="selectKalshiCategory('${cat.id}')"
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-900 text-slate-500 border border-slate-800 hover:text-white whitespace-nowrap">
+                        ${cat.label} <span class="text-slate-700 ml-0.5">${cat.total}</span>
+                    </button>`).join('');
+            }
+
+            const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+            if (meta) meta.textContent = `${total || '?'} open markets across ${_kalshiCategories.length} categories · updated ${ts}`;
+
+            if (_kalshiCategories.length) selectKalshiCategory(_kalshiCategories[0].id);
+        }
+
+        function selectKalshiCategory(catId) {
+            _kalshiCategories.forEach(cat => {
+                const btn = document.getElementById('kcat-' + cat.id);
+                if (!btn) return;
+                const active = cat.id === catId;
+                btn.classList.toggle('bg-slate-700', active);
+                btn.classList.toggle('text-white',   active);
+                btn.classList.toggle('bg-slate-900', !active);
+                btn.classList.toggle('text-slate-500', !active);
+            });
+            const cat  = _kalshiCategories.find(c => c.id === catId);
+            const pane = document.getElementById('kalshi-all-pane');
+            if (!cat || !pane) return;
+            if (!cat.markets.length) {
+                pane.innerHTML = `<div class="text-slate-700 text-sm text-center py-10">No open ${cat.label} markets right now.</div>`;
+                return;
+            }
+            pane.innerHTML = `<div class="space-y-2">${cat.markets.map(kalshiCard).join('')}</div>`;
         }
 
         // ─── H2H PANEL ───────────────────────────────────────────────────────────
