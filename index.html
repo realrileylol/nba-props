@@ -45,6 +45,56 @@
             <div id="brief-content" class="hidden"></div>
         </div>
 
+        <!-- ══════════ MENTIONS PREDICTIONS ══════════ -->
+        <div class="mb-6">
+            <div class="flex items-center gap-3 mb-1">
+                <h2 class="text-2xl font-black text-white tracking-tight">Mentions Predictions</h2>
+                <span class="px-2 py-0.5 bg-amber-400/10 border border-amber-500/30 rounded text-amber-400 text-[10px] font-bold uppercase tracking-wide">Beta</span>
+            </div>
+            <p class="text-sm text-slate-500 mb-5">Track which words broadcasters say during live games — and bet on them.</p>
+
+            <!-- Sport selector -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+                <button onclick="selectSport('nba')" id="sport-btn-nba"
+                    class="group text-left bg-slate-900 border-2 rounded-xl p-4 transition-all">
+                    <div class="text-xl mb-2">🏀</div>
+                    <div class="text-sm font-black text-white">NBA</div>
+                    <div class="text-[11px] font-semibold text-amber-400 mt-0.5">2025 Finals · Active</div>
+                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Breen · Jefferson · Legler<br>3 games tracked</div>
+                </button>
+
+                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
+                    <div class="text-xl mb-2 grayscale">⚾</div>
+                    <div class="text-sm font-black text-slate-400">MLB</div>
+                    <div class="text-[11px] text-slate-600 mt-0.5">Coming Soon</div>
+                    <div class="text-[10px] text-slate-700 mt-1.5">No data yet</div>
+                </button>
+
+                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
+                    <div class="text-xl mb-2 grayscale">⚽</div>
+                    <div class="text-sm font-black text-slate-400">Soccer</div>
+                    <div class="text-[11px] text-slate-600 mt-0.5">Coming Soon</div>
+                    <div class="text-[10px] text-slate-700 mt-1.5">No data yet</div>
+                </button>
+
+                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
+                    <div class="text-xl mb-2 grayscale">🏈</div>
+                    <div class="text-sm font-black text-slate-400">NFL</div>
+                    <div class="text-[11px] text-slate-600 mt-0.5">Off Season</div>
+                    <div class="text-[10px] text-slate-700 mt-1.5">Returns Sept</div>
+                </button>
+
+            </div>
+        </div>
+
+        <!-- ══════════ NBA CONTENT ══════════ -->
+        <div id="sport-nba">
+            <div class="flex items-center gap-2 mb-5">
+                <span class="w-1 h-4 bg-amber-400 rounded-full"></span>
+                <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">NBA · 2025 Finals · Broadcaster Word Props</span>
+            </div>
+
         <!-- Tabs -->
         <div class="flex gap-1 mb-8 bg-slate-900 border border-slate-800 p-1 rounded-xl w-fit">
             <button onclick="switchTab('g1')" id="tab-g1" class="px-5 py-2 rounded-lg text-sm font-bold transition-all">Game 1</button>
@@ -213,6 +263,8 @@
             <div id="intel-board"></div>
         </div>
 
+        </div> <!-- /sport-nba -->
+
     </div>
 
     <footer class="max-w-5xl mx-auto px-4 py-8 mt-4 border-t border-slate-900 text-center text-[11px] text-slate-700">
@@ -258,6 +310,31 @@
             "Retire / Retired / Retirement", "Triple Double", "Wingspan",
             "Zohran / Mamdani",
         ];
+
+        // ─── SPORT SELECTOR ─────────────────────────────────────────────────────
+
+        const SPORTS = ['nba']; // only nba has content; add more as they're built
+
+        function selectSport(sport) {
+            // Style the buttons
+            SPORTS.forEach(s => {
+                const btn = document.getElementById('sport-btn-' + s);
+                if (!btn) return;
+                if (s === sport) {
+                    btn.classList.add('border-amber-500', 'bg-slate-800');
+                    btn.classList.remove('border-slate-800');
+                } else {
+                    btn.classList.remove('border-amber-500', 'bg-slate-800');
+                    btn.classList.add('border-slate-800');
+                }
+            });
+
+            // Show/hide sport content panes
+            SPORTS.forEach(s => {
+                const pane = document.getElementById('sport-' + s);
+                if (pane) pane.classList.toggle('hidden', s !== sport);
+            });
+        }
 
         // ─── TABS ───────────────────────────────────────────────────────────────
 
@@ -508,6 +585,7 @@
             renderGame2();
             renderGame3();
             renderIntel();
+            selectSport('nba');
             switchTab('g1');
             fetchGameBrief();
         };
