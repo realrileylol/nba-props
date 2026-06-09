@@ -1,6 +1,7 @@
-// Kalshi markets by series_ticker — bypasses combo/parlay market noise
-// Fetches individual markets directly from known series across Sports + Politics + Economics + Crypto
-// Returns: { groups: [{id, label, icon, markets}], total, fetchedAt }
+// Kalshi Mentions — mirrors the /category/mentions page
+// Round 1: fetch events from Mentions + Sports + Politics categories
+// Round 2: fetch markets per relevant event (parallel)
+// Returns hierarchical: { categories: [{id, label, events: [{title, markets}]}] }
 
 const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
@@ -12,79 +13,71 @@ function getHeaders() {
     };
 }
 
-// Fetch markets for one series — fails silently so one bad series doesn't kill the whole request
-async function fetchSeries(seriesTicker) {
+async function fetchEventsByCategory(category) {
     try {
-        const url = `${KALSHI_BASE}/markets?status=open&limit=50&series_ticker=${encodeURIComponent(seriesTicker)}`;
+        const url = `${KALSHI_BASE}/events?status=open&limit=200&category=${encodeURIComponent(category)}`;
         const r = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(5000) });
         if (!r.ok) return [];
         const d = await r.json();
-        return d.markets || [];
-    } catch (_) {
-        return [];
-    }
+        return d.events || [];
+    } catch (_) { return []; }
 }
 
-// All known series tickers, labeled by group
-// Sports covers current active leagues; Politics, Economics, Crypto cover standing markets
-const SERIES = [
-    // ── Sports ──────────────────────────────────────────────────
-    { ticker: 'KXNBA',     group: 'sports' },
-    { ticker: 'NBAFINALS', group: 'sports' },
-    { ticker: 'KXMLBHIT',  group: 'sports' },   // MLB individual player hit props
-    { ticker: 'KXMLB',     group: 'sports' },
-    { ticker: 'KXNFL',     group: 'sports' },
-    { ticker: 'KXNHL',     group: 'sports' },
-    { ticker: 'KXMLS',     group: 'sports' },
-    { ticker: 'KXSOC',     group: 'sports' },
-    // ── Politics ─────────────────────────────────────────────────
-    { ticker: 'INX',       group: 'politics' },
-    { ticker: 'KXPOL',     group: 'politics' },
-    { ticker: 'KXPOTUS',   group: 'politics' },
-    { ticker: 'CONGRESS',  group: 'politics' },
-    // ── Economics ────────────────────────────────────────────────
-    { ticker: 'FED',       group: 'economics' },
-    { ticker: 'CPI',       group: 'economics' },
-    { ticker: 'NFP',       group: 'economics' },
-    { ticker: 'KXECON',    group: 'economics' },
-    { ticker: 'FOMC',      group: 'economics' },
-    // ── Crypto ───────────────────────────────────────────────────
-    { ticker: 'KXBTC',     group: 'crypto' },
-    { ticker: 'KXETH',     group: 'crypto' },
-    { ticker: 'BTC',       group: 'crypto' },
-];
+async function fetchAllEvents() {
+    try {
+        const url = `${KALSHI_BASE}/events?status=open&limit=200`;
+        const r = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(5000) });
+        if (!r.ok) return [];
+        const d = await r.json();
+        return d.events || [];
+    } catch (_) { return []; }
+}
 
-const GROUP_META = {
-    sports:    { id: 'sports',    label: '🏀 Sports',    icon: '🏀' },
-    politics:  { id: 'politics',  label: '🏛️ Politics',  icon: '🏛️' },
-    economics: { id: 'economics', label: '📈 Economics', icon: '📈' },
-    crypto:    { id: 'crypto',    label: '₿ Crypto',     icon: '₿' },
-};
-const GROUP_ORDER = ['sports', 'politics', 'economics', 'crypto'];
+async function fetchEventMarkets(eventTicker) {
+    try {
+        const url = `${KALSHI_BASE}/markets?status=open&limit=50&event_ticker=${encodeURIComponent(eventTicker)}`;
+        const r = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(4000) });
+        if (!r.ok) return [];
+        const d = await r.json();
+        return d.markets || [];
+    } catch (_) { return []; }
+}
 
-function toAmericanOdds(priceCents) {
-    if (priceCents == null || priceCents <= 0 || priceCents >= 100) return null;
-    const p = priceCents / 100;
-    return p >= 0.5
-        ? Math.round(-(p / (1 - p)) * 100)
-        : Math.round(((1 - p) / p) * 100);
+function toAmericanOdds(p) {
+    if (p == null || p <= 0 || p >= 100) return null;
+    const f = p / 100;
+    return f >= 0.5 ? Math.round(-(f / (1 - f)) * 100) : Math.round(((1 - f) / f) * 100);
 }
 
 function shape(m) {
-    const yesAsk = m.yes_ask ?? null;
-    const noAsk  = m.no_ask  ?? null;
     return {
         ticker:       m.ticker,
         title:        m.title || m.subtitle || m.ticker,
         subtitle:     m.subtitle || null,
-        yesOdds:      toAmericanOdds(yesAsk),
-        noOdds:       toAmericanOdds(noAsk),
-        yesPct:       yesAsk,
-        noPct:        noAsk,
+        yesOdds:      toAmericanOdds(m.yes_ask ?? null),
+        noOdds:       toAmericanOdds(m.no_ask  ?? null),
+        yesPct:       m.yes_ask ?? null,
+        noPct:        m.no_ask  ?? null,
         volume:       m.volume        || 0,
         openInterest: m.open_interest || 0,
         closeTime:    m.close_time    || null,
     };
+}
+
+// A "mentions" event talks about what someone will SAY
+const SAY_RE     = /\bsay\b|\bsays\b|\bsaid\b|\bsaying\b|\bmention\b|\bannouncer/i;
+const SPORTS_RE  = /baseball|basketball|hockey|football|soccer|\bnba\b|\bmlb\b|\bnhl\b|\bnfl\b|\bmls\b|game|sport|announcer|tennis|golf/i;
+const TRUMP_RE   = /\btrump\b/i;
+
+function isSportsEvent(e) {
+    const t = e.title || '';
+    return SAY_RE.test(t) && SPORTS_RE.test(t);
+}
+function isTrumpEvent(e) {
+    return TRUMP_RE.test(e.title || '');
+}
+function isMentionsEvent(e) {
+    return SAY_RE.test(e.title || '');
 }
 
 module.exports = async (req, res) => {
@@ -93,45 +86,82 @@ module.exports = async (req, res) => {
 
     if (!process.env.KALSHI_API_KEY) {
         return res.status(200).json({
-            groups: [], total: 0,
+            categories: [], total: 0,
             error: 'KALSHI_API_KEY not set — add it in Vercel → Project Settings → Environment Variables',
             fetchedAt: new Date().toISOString(),
         });
     }
 
     try {
-        // Fetch all series in parallel — each fails silently
-        const results = await Promise.all(SERIES.map(s => fetchSeries(s.ticker)));
+        // Round 1: fetch events from multiple categories in parallel
+        const [mentionsEvents, sportsEvents, politicsEvents, allEvents] = await Promise.all([
+            fetchEventsByCategory('Mentions'),
+            fetchEventsByCategory('Sports'),
+            fetchEventsByCategory('Politics'),
+            fetchAllEvents(),
+        ]);
 
-        // Accumulate markets by group, dedup by ticker
-        const buckets = { sports: [], politics: [], economics: [], crypto: [] };
-        const seen = new Set();
-
-        SERIES.forEach(({ ticker, group }, i) => {
-            results[i].forEach(m => {
-                if (seen.has(m.ticker)) return;
-                seen.add(m.ticker);
-                buckets[group].push(shape(m));
+        // Merge + deduplicate
+        const seenTickers = new Set();
+        const combined = [...mentionsEvents, ...sportsEvents, ...politicsEvents, ...allEvents]
+            .filter(e => {
+                if (!e.event_ticker || seenTickers.has(e.event_ticker)) return false;
+                seenTickers.add(e.event_ticker);
+                return true;
             });
-        });
 
-        // Sort each bucket by volume, cap at 60 markets per group
-        GROUP_ORDER.forEach(id => {
-            buckets[id] = buckets[id]
-                .sort((a, b) => (b.volume || 0) - (a.volume || 0))
-                .slice(0, 60);
-        });
+        // Separate into sports mentions and Trump mentions
+        let sportsBucket = combined.filter(isSportsEvent);
+        let trumpBucket  = combined.filter(isTrumpEvent);
 
-        const groups = GROUP_ORDER
-            .filter(id => buckets[id].length > 0)
-            .map(id => ({ ...GROUP_META[id], markets: buckets[id] }));
+        // If no SAY-style sports events found, fall back to all mentions events
+        if (!sportsBucket.length) {
+            sportsBucket = combined.filter(e => isMentionsEvent(e) && !TRUMP_RE.test(e.title || ''));
+        }
 
-        const total = groups.reduce((s, g) => s + g.markets.length, 0);
+        // Cap to keep within Vercel time budget: 7 sports + 5 trump = 12 parallel market fetches × 4s = 4s
+        const sportsToFetch = sportsBucket.slice(0, 7);
+        const trumpToFetch  = trumpBucket.slice(0, 5);
+        const allToFetch    = [...sportsToFetch, ...trumpToFetch];
 
-        res.status(200).json({ groups, total, fetchedAt: new Date().toISOString() });
+        if (!allToFetch.length) {
+            return res.status(200).json({
+                categories: [], total: 0,
+                fetchedAt: new Date().toISOString(),
+            });
+        }
+
+        // Round 2: fetch markets for each event in parallel
+        const marketResults = await Promise.all(allToFetch.map(e => fetchEventMarkets(e.event_ticker)));
+
+        function buildCategory(id, label, events, offset) {
+            const catEvents = events
+                .map((event, i) => {
+                    const raw     = marketResults[offset + i] || [];
+                    const markets = raw.map(shape).sort((a, b) => (b.volume || 0) - (a.volume || 0));
+                    if (!markets.length) return null;
+                    return {
+                        eventTicker: event.event_ticker,
+                        title:       event.title,
+                        closeTime:   event.close_time || null,
+                        total:       raw.length,         // real total from Kalshi
+                        markets:     markets.slice(0, 15), // show top 15 per event
+                    };
+                })
+                .filter(Boolean);
+            return catEvents.length ? { id, label, events: catEvents } : null;
+        }
+
+        const sportsCategory = buildCategory('sports', '🏀 Sports · Announcer Mentions', sportsToFetch, 0);
+        const trumpCategory  = buildCategory('trump',  '🏛️ Trump Mentions',               trumpToFetch,  sportsToFetch.length);
+
+        const categories = [sportsCategory, trumpCategory].filter(Boolean);
+        const total = categories.reduce((s, c) => s + c.events.reduce((es, ev) => es + ev.markets.length, 0), 0);
+
+        res.status(200).json({ categories, total, fetchedAt: new Date().toISOString() });
     } catch (err) {
         res.status(200).json({
-            groups: [], total: 0,
+            categories: [], total: 0,
             error: err.message,
             fetchedAt: new Date().toISOString(),
         });
