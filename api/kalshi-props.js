@@ -45,7 +45,7 @@ async function fetchMentionsSeries() {
 async function scanOpenEvents() {
     const all = [];
     let cursor = null;
-    const deadline = Date.now() + 5500;
+    const deadline = Date.now() + 4500;
     for (let page = 0; page < 5 && Date.now() < deadline - 300; page++) {
         const qs = new URLSearchParams({
             status: 'open',
@@ -76,6 +76,14 @@ async function fetchSeriesEvents(seriesTicker) {
     return d?.events || [];
 }
 
+// Direct market fetch for one event — /markets always carries live price
+// fields, used to hydrate events whose nested markets came back price-less
+async function fetchEventMarkets(eventTicker) {
+    const qs = new URLSearchParams({ limit: '60', event_ticker: eventTicker });
+    const d = await getJSON(`${KALSHI_BASE}/markets?${qs}`, 2500);
+    return d?.markets || [];
+}
+
 function toAmericanOdds(p) {
     if (p == null || p <= 0 || p >= 100) return null;
     const f = p / 100;
@@ -83,6 +91,11 @@ function toAmericanOdds(p) {
 }
 
 function validPct(p) { return p != null && p > 0 && p < 100 ? p : null; }
+
+function hasAnyPrice(m) {
+    return validPct(m.yes_ask) != null || validPct(m.yes_bid) != null ||
+           validPct(m.last_price) != null || validPct(m.previous_yes_price) != null;
+}
 
 function shapeMarket(m) {
     // Try every known price field in priority order: live ask → bid → last trade → prev close
@@ -181,6 +194,16 @@ module.exports = async (req, res) => {
             if (e.event_ticker && !merged.has(e.event_ticker)) merged.set(e.event_ticker, e);
         });
 
+        // Price hydration — if an event's nested markets all came back without
+        // price fields, re-fetch them from /markets (which always has prices).
+        // Soonest-closing first, capped at 6 parallel calls (under rate limit).
+        const needsPrices = [...merged.values()]
+            .filter(e => (e.markets || []).length && !e.markets.some(hasAnyPrice))
+            .sort((a, b) => new Date(a.close_time || 8.64e15) - new Date(b.close_time || 8.64e15))
+            .slice(0, 6);
+        const hydrated = await Promise.all(needsPrices.map(e => fetchEventMarkets(e.event_ticker)));
+        needsPrices.forEach((e, i) => { if (hydrated[i].length) e.markets = hydrated[i]; });
+
         // Bucket every event into exactly one category tab
         const sportsEvents    = [];
         const politicalEvents = [];
@@ -203,7 +226,7 @@ module.exports = async (req, res) => {
 
         // Sample the first few raw nested-market objects so we can see
         // which price fields Kalshi actually returns in this format.
-        const rawSample = openEvents.flatMap(e => e.markets || []).slice(0, 3).map(m => ({
+        const rawSample = [...merged.values()].flatMap(e => e.markets || []).slice(0, 3).map(m => ({
             ticker: m.ticker,
             status: m.status,
             yes_ask: m.yes_ask,
@@ -223,6 +246,7 @@ module.exports = async (req, res) => {
                 mentionEvents:     mentionEvents.length,
                 merged:            merged.size,
                 withMarkets:       categories.reduce((s, c) => s + c.events.length, 0),
+                hydratedEvents:    needsPrices.length,
                 rawSample,
             },
             fetchedAt: new Date().toISOString(),
