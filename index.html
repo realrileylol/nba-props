@@ -1637,6 +1637,7 @@
         let _mentionsCategories = [];
         let _activeMentionsCat  = null;
         let _openEventTicker    = null;
+        let _mentionsSortAsc    = true;
 
         function renderMentions({ categories, total, error, fetchedAt, debug }) {
             const pane = document.getElementById('kalshi-mentions-pane');
@@ -1688,9 +1689,14 @@
             selectMentionsCategory(categories[0].id);
         }
 
+        function toggleMentionsSort() {
+            _mentionsSortAsc = !_mentionsSortAsc;
+            selectMentionsCategory(_activeMentionsCat);
+        }
+
         function selectMentionsCategory(catId) {
+            if (catId !== _activeMentionsCat) _openEventTicker = null;
             _activeMentionsCat = catId;
-            _openEventTicker   = null;
             const pane = document.getElementById('kalshi-mentions-pane');
             if (!pane) return;
 
@@ -1702,7 +1708,13 @@
                     ${c.label} <span style="font-size:10px;margin-left:3px;opacity:.6">${c.events.length}</span>
                 </button>`).join('');
 
-            const eventRows = cat.events.map(event => {
+            const sortedEvents = [...cat.events].sort((a, b) => {
+                const ta = a.closeTime ? new Date(a.closeTime).getTime() : Infinity;
+                const tb = b.closeTime ? new Date(b.closeTime).getTime() : Infinity;
+                return _mentionsSortAsc ? ta - tb : tb - ta;
+            });
+
+            const eventRows = sortedEvents.map(event => {
                 const isOpen = _openEventTicker === event.eventTicker;
                 const closeTxt = event.closeTime ? fmtCloseTime(event.closeTime) : null;
                 const liveCount = (event.markets || []).filter(m => m.status === 'open').length;
@@ -1733,9 +1745,16 @@
                 </div>`;
             }).join('');
 
+            const sortLabel = _mentionsSortAsc ? 'Time ↑' : 'Time ↓';
             pane.innerHTML = `
-                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${tabs}</div>
-                <div>${eventRows}</div>`;
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:16px">
+                    ${tabs}
+                    <button onclick="toggleMentionsSort()"
+                        style="margin-left:auto;font-size:11px;color:var(--c-text2);border:1px solid var(--c-border);border-radius:4px;padding:4px 10px;background:none;cursor:pointer;transition:all .15s;white-space:nowrap"
+                        onmouseover="this.style.color='var(--c-text1)';this.style.borderColor='var(--c-border2)'"
+                        onmouseout="this.style.color='var(--c-text2)';this.style.borderColor='var(--c-border)'">${sortLabel}</button>
+                </div>
+                <div class="scrollbar" style="max-height:560px;overflow-y:auto;padding-right:4px">${eventRows}</div>`;
         }
 
         function toggleMentionsEvent(ticker) {

@@ -151,7 +151,7 @@ module.exports = async (req, res) => {
             .slice(0, 8);
 
         // Round 2 — everything in one parallel batch (≤3.5s wall clock)
-        const toFetch = mentionEvents.slice(0, 25);
+        const toFetch = mentionEvents.slice(0, 50);
         const [marketLists, ...seriesEventLists] = await Promise.all([
             Promise.all(toFetch.map(e => fetchEventMarkets(e.event_ticker))),
             ...sportSeries.map(s => fetchSeriesEvents(s.ticker)),
