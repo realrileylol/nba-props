@@ -4,17 +4,19 @@
 //   - /series/?category=Mentions returns ~367 series (authoritative mentions list)
 //   - Mentions markets are status "unopened" until shortly before each broadcast,
 //     so a status=open market filter wrongly returns nothing during the day.
-//   - Kalshi rate-limits ~10 reads/sec — per-event market fetches DO NOT scale.
-//     Instead, the events scan uses with_nested_markets=true so markets arrive
-//     inside the same paginated calls (~5 requests total instead of ~58).
+//   - Kalshi rate-limits ~10 reads/sec — bulk concurrency must stay small.
+//   - The paginated open-events scan is NON-DETERMINISTIC: which mentions events
+//     land inside the 1000-event window varies per request, which made every
+//     Refresh return a different list. The scan is now only a supplement.
 //   - Vercel Hobby kills functions at 10s — total budget here is ~8s worst case.
 //
 // Flow:
-//   Round 1 (parallel): series list + paginated open-events scan WITH nested markets
-//   Match:  events whose series_ticker is in the Mentions series set (strict —
-//           no title-regex fallback, which leaked non-mentions markets in)
-//   Round 2 (parallel, ≤8 calls): sports-flavored series fetched directly so
-//           tonight's game always appears even past the pagination window
+//   Round 1 (parallel): series list + open-events scan (supplement only)
+//   Backbone: the major series (NBA, MLB, NHL, NFL, Trump, press…) are fetched
+//             DIRECTLY by series_ticker in rate-limited waves — deterministic,
+//             same core results on every refresh
+//   Tagging:  every series gets a league/topic tag (NBA, MLB, Trump, …) which
+//             drives both the category tab and the sub-category tab
 
 const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
@@ -35,17 +37,16 @@ async function getJSON(url, timeoutMs) {
 }
 
 async function fetchMentionsSeries() {
-    const d = await getJSON(`${KALSHI_BASE}/series/?category=Mentions`, 4500);
+    const d = await getJSON(`${KALSHI_BASE}/series/?category=Mentions`, 4000);
     return d?.series || [];
 }
 
-// Paginated open-events scan with nested markets — one batch of calls returns
-// every open event AND its full market list (markets are NOT status-filtered,
-// so "unopened" mentions markets are included)
+// Supplemental open-events scan (nested markets). Non-deterministic window —
+// only ADDS events beyond the deterministic backbone, never the main source.
 async function scanOpenEvents() {
     const all = [];
     let cursor = null;
-    const deadline = Date.now() + 4500;
+    const deadline = Date.now() + 3500;
     for (let page = 0; page < 5 && Date.now() < deadline - 300; page++) {
         const qs = new URLSearchParams({
             status: 'open',
@@ -53,7 +54,7 @@ async function scanOpenEvents() {
             with_nested_markets: 'true',
         });
         if (cursor) qs.set('cursor', cursor);
-        const d = await getJSON(`${KALSHI_BASE}/events?${qs}`, Math.max(900, deadline - Date.now()));
+        const d = await getJSON(`${KALSHI_BASE}/events?${qs}`, Math.max(800, deadline - Date.now()));
         if (!d) break;
         all.push(...(d.events || []));
         cursor = d.cursor;
@@ -62,25 +63,33 @@ async function scanOpenEvents() {
     return all;
 }
 
-// Events (with nested markets) for one series — guarantees we find live game
-// events even when they're beyond the events-scan pagination window.
-// status=open here too, otherwise past (settled) games come back.
+// Deterministic per-series events fetch (nested markets, open only)
 async function fetchSeriesEvents(seriesTicker) {
     const qs = new URLSearchParams({
-        limit: '10',
+        limit: '20',
         status: 'open',
         series_ticker: seriesTicker,
         with_nested_markets: 'true',
     });
-    const d = await getJSON(`${KALSHI_BASE}/events?${qs}`, 3000);
+    const d = await getJSON(`${KALSHI_BASE}/events?${qs}`, 2500);
     return d?.events || [];
+}
+
+// Rate-limit-safe: fetch series events in sequential waves of `size` parallel calls
+async function fetchSeriesInWaves(tickers, size) {
+    const out = [];
+    for (let i = 0; i < tickers.length; i += size) {
+        const wave = await Promise.all(tickers.slice(i, i + size).map(t => fetchSeriesEvents(t)));
+        out.push(...wave.flat());
+    }
+    return out;
 }
 
 // Direct market fetch for one event — /markets always carries live price
 // fields, used to hydrate events whose nested markets came back price-less
 async function fetchEventMarkets(eventTicker) {
     const qs = new URLSearchParams({ limit: '60', event_ticker: eventTicker });
-    const d = await getJSON(`${KALSHI_BASE}/markets?${qs}`, 2500);
+    const d = await getJSON(`${KALSHI_BASE}/markets?${qs}`, 2000);
     return d?.markets || [];
 }
 
@@ -144,9 +153,44 @@ function shapeEvent(event, rawMarkets) {
     };
 }
 
-// Categorize by series + event text — every event lands in exactly one tab
-const SPORTS_RE = /baseball|basketball|hockey|football|soccer|\bnba\b|\bmlb\b|\bnhl\b|\bnfl\b|\bmls\b|\bwnba\b|announcer|tennis|golf|nascar|ufc|boxing|olympic|\bvs\.?\b|\bgame\b|series|finals|playoff/i;
-const POLITICAL_RE = /trump|biden|vance|white house|press (briefing|secretary|conference)|congress|senate|house speaker|governor|mayor|politic|debate|state of the union|cabinet|leavitt|fed chair|powell/i;
+// ── Tagging ──────────────────────────────────────────────────────────────
+// Every mentions series gets one league/topic tag. The tag drives both the
+// top-level category tab and the sub-category tab in the UI.
+function tagForSeries(ticker, title) {
+    const s = `${ticker || ''} ${title || ''}`;
+    if (/wnba/i.test(s))                                  return 'WNBA';
+    if (/nba|basketball/i.test(s))                        return 'NBA';
+    if (/mlb|baseball/i.test(s))                          return 'MLB';
+    if (/nhl|hockey/i.test(s))                            return 'NHL';
+    if (/nfl/i.test(s))                                   return 'NFL';
+    if (/soccer|premier|fifa|\bmls\b|champions/i.test(s)) return 'Soccer';
+    if (/golf|pga|masters/i.test(s))                      return 'Golf';
+    if (/tennis|wimbledon/i.test(s))                      return 'Tennis';
+    if (/nascar|\bf1\b|grand prix|racing/i.test(s))       return 'Racing';
+    if (/ufc|boxing|mma/i.test(s))                        return 'Combat';
+    if (/football|announcer|sport/i.test(s))              return 'Sports';
+    if (/trump/i.test(s))                                 return 'Trump';
+    if (/press|briefing|white house|leavitt/i.test(s))    return 'Press';
+    if (/biden|vance|musk|congress|senate|governor|mayor|debate|politic|cabinet|powell|fed/i.test(s)) return 'Politics';
+    return 'Other';
+}
+
+const SPORT_TAGS     = new Set(['NBA', 'WNBA', 'MLB', 'NHL', 'NFL', 'Soccer', 'Golf', 'Tennis', 'Racing', 'Combat', 'Sports']);
+const POLITICAL_TAGS = new Set(['Trump', 'Press', 'Politics']);
+
+function categoryForTag(tag) {
+    if (SPORT_TAGS.has(tag))     return 'sports';
+    if (POLITICAL_TAGS.has(tag)) return 'political';
+    return 'other';
+}
+
+// Backbone fetch priority — these series are fetched directly every request,
+// so the core of every refresh is identical
+const TAG_PRIORITY = ['NBA', 'MLB', 'NHL', 'NFL', 'WNBA', 'Soccer', 'Golf', 'Tennis', 'Racing', 'Combat', 'Sports', 'Trump', 'Press', 'Politics'];
+function tagPriority(tag) {
+    const i = TAG_PRIORITY.indexOf(tag);
+    return i === -1 ? 99 : i;
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
@@ -161,93 +205,83 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Round 1 — series list + full open-events scan (markets nested)
+        // Round 1 — series list + supplemental scan, in parallel
         const [mentionsSeries, openEvents] = await Promise.all([
             fetchMentionsSeries(),
             scanOpenEvents(),
         ]);
 
+        const tagBySeries = new Map(
+            mentionsSeries.map(s => [s.ticker, tagForSeries(s.ticker, s.title)]));
         const mentionTickers = new Set(mentionsSeries.map(s => s.ticker).filter(Boolean));
-        const seriesTitleByTicker = new Map(mentionsSeries.map(s => [s.ticker, s.title || '']));
 
-        // STRICT match: only events whose series is in the Mentions category.
-        // (The old title-regex fallback leaked unrelated markets like
-        // "Will there be a Trump economic boom?" into the list.)
-        const mentionEvents = openEvents.filter(e =>
-            e.series_ticker && mentionTickers.has(e.series_ticker));
+        // Deterministic backbone: top-priority series fetched directly, in a
+        // STABLE order (priority, then ticker) so every refresh hits the same set
+        const backbone = mentionsSeries
+            .filter(s => s.ticker && tagPriority(tagBySeries.get(s.ticker)) < 99)
+            .sort((a, b) =>
+                tagPriority(tagBySeries.get(a.ticker)) - tagPriority(tagBySeries.get(b.ticker)) ||
+                (a.ticker < b.ticker ? -1 : 1))
+            .slice(0, 16);
 
-        // Round 2 — sports series fetched directly so live game events always
-        // appear even if the scan's pagination window missed them (≤8 calls)
-        const SPORT_SERIES_RE = /nba|basketball|mlb|baseball|nhl|hockey|nfl|football|announcer|finals/i;
-        const sportSeries = mentionsSeries
-            .filter(s => SPORT_SERIES_RE.test(`${s.ticker || ''} ${s.title || ''}`))
-            .slice(0, 8);
-        const seriesEventLists = await Promise.all(
-            sportSeries.map(s => fetchSeriesEvents(s.ticker)));
+        // Two waves of 8 parallel calls — under Kalshi's ~10 req/s limit
+        const backboneEvents = await fetchSeriesInWaves(backbone.map(s => s.ticker), 8);
 
-        // Merge by event_ticker — all events carry nested markets
+        // Merge: backbone first (stable core), then scan extras
         const merged = new Map();
-        mentionEvents.forEach(e => {
+        backboneEvents.forEach(e => {
             if (e.event_ticker) merged.set(e.event_ticker, e);
         });
-        seriesEventLists.flat().forEach(e => {
-            if (e.event_ticker && !merged.has(e.event_ticker)) merged.set(e.event_ticker, e);
+        openEvents.forEach(e => {
+            if (e.event_ticker && !merged.has(e.event_ticker) &&
+                e.series_ticker && mentionTickers.has(e.series_ticker)) {
+                merged.set(e.event_ticker, e);
+            }
         });
 
         // Price hydration — if an event's nested markets all came back without
         // price fields, re-fetch them from /markets (which always has prices).
-        // Soonest-closing first, capped at 6 parallel calls (under rate limit).
+        // Soonest-closing first, capped at 4 parallel calls.
         const needsPrices = [...merged.values()]
             .filter(e => (e.markets || []).length && !e.markets.some(hasAnyPrice))
             .sort((a, b) => new Date(a.close_time || 8.64e15) - new Date(b.close_time || 8.64e15))
-            .slice(0, 6);
+            .slice(0, 4);
         const hydrated = await Promise.all(needsPrices.map(e => fetchEventMarkets(e.event_ticker)));
         needsPrices.forEach((e, i) => { if (hydrated[i].length) e.markets = hydrated[i]; });
 
-        // Bucket every event into exactly one category tab
-        const sportsEvents    = [];
-        const politicalEvents = [];
-        const otherEvents     = [];
+        // Bucket into category tabs; each event carries its sub-category tag
+        const buckets = { sports: [], political: [], other: [] };
         merged.forEach(event => {
             const shaped = shapeEvent(event, event.markets);
             if (!shaped) return;
-            const text = `${event.title || ''} ${seriesTitleByTicker.get(event.series_ticker) || ''}`;
-            if (SPORTS_RE.test(text))         sportsEvents.push(shaped);
-            else if (POLITICAL_RE.test(text)) politicalEvents.push(shaped);
-            else                              otherEvents.push(shaped);
+            const tag = tagBySeries.get(event.series_ticker) || 'Other';
+            shaped.tag = tag;
+            buckets[categoryForTag(tag)].push(shaped);
         });
 
+        // Deterministic ordering inside every bucket
+        const byClose = (a, b) =>
+            new Date(a.closeTime || 8.64e15) - new Date(b.closeTime || 8.64e15) ||
+            (a.eventTicker < b.eventTicker ? -1 : 1);
+        Object.values(buckets).forEach(arr => arr.sort(byClose));
+
         const categories = [];
-        if (sportsEvents.length)    categories.push({ id: 'sports',    label: 'Sports',    events: sportsEvents });
-        if (politicalEvents.length) categories.push({ id: 'political', label: 'Political', events: politicalEvents });
-        if (otherEvents.length)     categories.push({ id: 'other',     label: 'All Other', events: otherEvents });
+        if (buckets.sports.length)    categories.push({ id: 'sports',    label: 'Sports',    events: buckets.sports });
+        if (buckets.political.length) categories.push({ id: 'political', label: 'Political', events: buckets.political });
+        if (buckets.other.length)     categories.push({ id: 'other',     label: 'All Other', events: buckets.other });
 
         const total = categories.reduce((s, c) => s + c.events.reduce((es, ev) => es + ev.markets.length, 0), 0);
-
-        // Sample the first few raw nested-market objects so we can see
-        // which price fields Kalshi actually returns in this format.
-        const rawSample = [...merged.values()].flatMap(e => e.markets || []).slice(0, 3).map(m => ({
-            ticker: m.ticker,
-            status: m.status,
-            yes_ask: m.yes_ask,
-            yes_bid: m.yes_bid,
-            no_ask:  m.no_ask,
-            no_bid:  m.no_bid,
-            last_price: m.last_price,
-            previous_yes_price: m.previous_yes_price,
-        }));
 
         res.status(200).json({
             categories, total,
             debug: {
                 mentionsSeries:    mentionsSeries.length,
-                sportSeries:       sportSeries.length,
+                backboneSeries:    backbone.length,
+                backboneEvents:    backboneEvents.length,
                 openEventsScanned: openEvents.length,
-                mentionEvents:     mentionEvents.length,
                 merged:            merged.size,
-                withMarkets:       categories.reduce((s, c) => s + c.events.length, 0),
                 hydratedEvents:    needsPrices.length,
-                rawSample,
+                withMarkets:       categories.reduce((s, c) => s + c.events.length, 0),
             },
             fetchedAt: new Date().toISOString(),
         });

@@ -1636,6 +1636,7 @@
         // ── Mentions navigation state ──────────────────────────────────────────────
         let _mentionsCategories = [];
         let _activeMentionsCat  = null;
+        let _activeMentionsSub  = 'all';
         let _openEventTicker    = null;
         let _mentionsSortAsc    = true;
 
@@ -1694,8 +1695,17 @@
             selectMentionsCategory(_activeMentionsCat);
         }
 
+        function selectMentionsSubcat(tag) {
+            _activeMentionsSub = tag;
+            _openEventTicker   = null;
+            selectMentionsCategory(_activeMentionsCat);
+        }
+
         function selectMentionsCategory(catId) {
-            if (catId !== _activeMentionsCat) _openEventTicker = null;
+            if (catId !== _activeMentionsCat) {
+                _openEventTicker   = null;
+                _activeMentionsSub = 'all';
+            }
             _activeMentionsCat = catId;
             const pane = document.getElementById('kalshi-mentions-pane');
             if (!pane) return;
@@ -1708,7 +1718,30 @@
                     ${c.label} <span style="font-size:10px;margin-left:3px;opacity:.6">${c.events.length}</span>
                 </button>`).join('');
 
-            const sortedEvents = [...cat.events].sort((a, b) => {
+            // Sub-category tabs from each event's tag (NBA, MLB, Trump, …)
+            const tagCounts = {};
+            cat.events.forEach(e => {
+                const t = e.tag || 'Other';
+                tagCounts[t] = (tagCounts[t] || 0) + 1;
+            });
+            const tagNames = Object.keys(tagCounts).sort();
+            if (_activeMentionsSub !== 'all' && !tagCounts[_activeMentionsSub]) _activeMentionsSub = 'all';
+            const subTabs = tagNames.length > 1 ? `
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">
+                    <button onclick="selectMentionsSubcat('all')" class="pill-tab ${_activeMentionsSub === 'all' ? 'active' : ''}" style="font-size:11px;padding:3px 10px">
+                        All <span style="font-size:10px;margin-left:3px;opacity:.6">${cat.events.length}</span>
+                    </button>
+                    ${tagNames.map(t => `
+                    <button onclick="selectMentionsSubcat('${t}')" class="pill-tab ${_activeMentionsSub === t ? 'active' : ''}" style="font-size:11px;padding:3px 10px">
+                        ${t} <span style="font-size:10px;margin-left:3px;opacity:.6">${tagCounts[t]}</span>
+                    </button>`).join('')}
+                </div>` : '';
+
+            const visible = _activeMentionsSub === 'all'
+                ? cat.events
+                : cat.events.filter(e => (e.tag || 'Other') === _activeMentionsSub);
+
+            const sortedEvents = [...visible].sort((a, b) => {
                 const ta = a.closeTime ? new Date(a.closeTime).getTime() : Infinity;
                 const tb = b.closeTime ? new Date(b.closeTime).getTime() : Infinity;
                 return _mentionsSortAsc ? ta - tb : tb - ta;
@@ -1747,13 +1780,14 @@
 
             const sortLabel = _mentionsSortAsc ? 'Time ↑' : 'Time ↓';
             pane.innerHTML = `
-                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:16px">
+                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:12px">
                     ${tabs}
                     <button onclick="toggleMentionsSort()"
                         style="margin-left:auto;font-size:11px;color:var(--c-text2);border:1px solid var(--c-border);border-radius:4px;padding:4px 10px;background:none;cursor:pointer;transition:all .15s;white-space:nowrap"
                         onmouseover="this.style.color='var(--c-text1)';this.style.borderColor='var(--c-border2)'"
                         onmouseout="this.style.color='var(--c-text2)';this.style.borderColor='var(--c-border)'">${sortLabel}</button>
                 </div>
+                ${subTabs}
                 <div class="scrollbar" style="max-height:560px;overflow-y:auto;padding-right:4px">${eventRows}</div>`;
         }
 
