@@ -731,7 +731,15 @@
             try {
                 const res  = await fetch('/api/kalshi-props');
                 const data = await res.json();
-                renderKalshi(data);
+
+                // New API shape: { categories: [{events: [{title, markets}]}] }.
+                // Pull out the NBA game event(s) for the G4 live-lines pane.
+                const NBA_RE = /\bnba\b|basketball|knicks|spurs|thunder|pacers|celtics|lakers|finals/i;
+                const allEvents = (data.categories || []).flatMap(c => c.events || []);
+                const nbaEvents = allEvents.filter(e => NBA_RE.test(e.title || ''));
+                const markets   = nbaEvents.flatMap(e => e.markets || []);
+
+                renderKalshi({ markets, error: data.error, fetchedAt: data.fetchedAt, eventTitle: nbaEvents[0]?.title });
                 kalshiLoaded = true;
                 // Auto-refresh every 30 s while tab is in view
                 if (!kalshiInterval) {
@@ -746,7 +754,7 @@
             }
         }
 
-        function renderKalshi({ markets, error, fetchedAt }) {
+        function renderKalshi({ markets, error, fetchedAt, eventTitle }) {
             const pane = document.getElementById('kalshi-pane');
 
             if (error) {
@@ -778,7 +786,7 @@
             const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
             pane.innerHTML = `
                 <div class="text-[10px] text-slate-700 mb-3 flex items-center justify-between">
-                    <span>💡 Tap YES or NO for betting reasoning</span>
+                    <span>${eventTitle ? eventTitle : 'Tap YES or NO for reasoning'}</span>
                     <span>Updated ${ts} · ${markets.length} markets</span>
                 </div>
                 <div class="space-y-2">${markets.map(kalshiCard).join('')}</div>`;

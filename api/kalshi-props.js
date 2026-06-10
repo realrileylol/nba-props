@@ -63,6 +63,18 @@ async function fetchEventMarkets(eventTicker) {
     return d?.markets || [];
 }
 
+// Events (with nested markets) for one series — guarantees we find live game
+// events even when they're beyond the events-scan pagination window
+async function fetchSeriesEvents(seriesTicker) {
+    const qs = new URLSearchParams({
+        limit: '10',
+        series_ticker: seriesTicker,
+        with_nested_markets: 'true',
+    });
+    const d = await getJSON(`${KALSHI_BASE}/events?${qs}`, 3500);
+    return d?.events || [];
+}
+
 function toAmericanOdds(p) {
     if (p == null || p <= 0 || p >= 100) return null;
     const f = p / 100;
@@ -131,16 +143,37 @@ module.exports = async (req, res) => {
             return SAY_RE.test(t) || TRUMP_RE.test(t);
         });
 
-        // Fetch all matches — cap at 25 parallel requests to stay inside Vercel 10s budget
+        // Sports-flavored mentions series get fetched directly (with nested markets)
+        // so tonight's game event always shows up even if the scan missed it
+        const SPORT_SERIES_RE = /nba|basketball|mlb|baseball|nhl|hockey|nfl|football|announcer|finals/i;
+        const sportSeries = mentionsSeries
+            .filter(s => SPORT_SERIES_RE.test(`${s.ticker || ''} ${s.title || ''}`))
+            .slice(0, 8);
+
+        // Round 2 — everything in one parallel batch (≤3.5s wall clock)
         const toFetch = mentionEvents.slice(0, 25);
-        const marketLists = await Promise.all(toFetch.map(e => fetchEventMarkets(e.event_ticker)));
+        const [marketLists, ...seriesEventLists] = await Promise.all([
+            Promise.all(toFetch.map(e => fetchEventMarkets(e.event_ticker))),
+            ...sportSeries.map(s => fetchSeriesEvents(s.ticker)),
+        ]);
+
+        // Merge: scanned events (markets fetched separately) + series events (nested markets)
+        const merged = new Map();   // event_ticker → { event, markets }
+        toFetch.forEach((event, i) => {
+            if (event.event_ticker) merged.set(event.event_ticker, { event, markets: marketLists[i] });
+        });
+        seriesEventLists.flat().forEach(e => {
+            if (e.event_ticker && !merged.has(e.event_ticker)) {
+                merged.set(e.event_ticker, { event: e, markets: e.markets || [] });
+            }
+        });
 
         // Bucket: Trump / Sports / All Others — NO content filtering, show everything
         const trumpEvents  = [];
         const sportsEvents = [];
         const otherEvents  = [];
-        toFetch.forEach((event, i) => {
-            const shaped = shapeEvent(event, marketLists[i]);
+        merged.forEach(({ event, markets }) => {
+            const shaped = shapeEvent(event, markets);
             if (!shaped) return;
             const t = event.title || '';
             if (TRUMP_RE.test(t))   trumpEvents.push(shaped);
@@ -160,9 +193,10 @@ module.exports = async (req, res) => {
             categories, total,
             debug: {
                 mentionsSeries:   mentionsSeries.length,
+                sportSeries:      sportSeries.length,
                 openEventsScanned: openEvents.length,
                 mentionEvents:    mentionEvents.length,
-                fetched:          toFetch.length,
+                fetched:          merged.size,
                 withMarkets:      categories.reduce((s, c) => s + c.events.length, 0),
             },
             fetchedAt: new Date().toISOString(),
