@@ -107,7 +107,22 @@ function shapeMarket(m) {
 }
 
 const TOP_PER_TAG      = 5;   // max events shown per sub-category (league/topic)
-const MAX_MKT_FETCHES  = 12;  // max parallel /markets requests (rate-limit safe)
+const MAX_MKT_FETCHES  = 12;  // max /markets requests per refresh
+const WAVE_SIZE        = 7;   // parallel calls per wave — stays under Kalshi ~10 req/s
+
+// Warm-instance cache: spam refreshes are served from memory and stale data
+// beats an empty page when Kalshi rate-limits or hiccups
+let _cache = { data: null, ts: 0 };
+const CACHE_MS = 30_000;
+
+async function inWaves(items, fn) {
+    const out = [];
+    for (let i = 0; i < items.length; i += WAVE_SIZE) {
+        const wave = await Promise.all(items.slice(i, i + WAVE_SIZE).map(fn));
+        out.push(...wave);
+    }
+    return out;
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
@@ -119,6 +134,11 @@ module.exports = async (req, res) => {
             error: 'KALSHI_API_KEY not set',
             fetchedAt: new Date().toISOString(),
         });
+    }
+
+    // Serve from warm cache — refresh spam never re-hits Kalshi inside 30s
+    if (_cache.data && Date.now() - _cache.ts < CACHE_MS) {
+        return res.status(200).json({ ..._cache.data, cached: true });
     }
 
     try {
@@ -134,9 +154,8 @@ module.exports = async (req, res) => {
                 (a.ticker < b.ticker ? -1 : 1))
             .slice(0, 20);
 
-        // ── Phase 2: open events for backbone series (parallel, no markets) ──
-        const seriesEventGroups = await Promise.all(
-            backbone.map(s => fetchSeriesEvents(s.ticker)));
+        // ── Phase 2: open events for backbone series (rate-limited waves) ──
+        const seriesEventGroups = await inWaves(backbone, s => fetchSeriesEvents(s.ticker));
 
         // Collect top N events per tag (soonest closing = most relevant today)
         const topByTag = {};
@@ -168,7 +187,7 @@ module.exports = async (req, res) => {
             .slice(0, MAX_MKT_FETCHES);
 
         // ── Phase 3: real prices for each event from /markets endpoint ───────
-        const marketGroups = await Promise.all(allEvents.map(e => fetchEventMarkets(e.event_ticker)));
+        const marketGroups = await inWaves(allEvents, e => fetchEventMarkets(e.event_ticker));
 
         // Shape and bucket
         const buckets = { sports: [], political: [], other: [] };
@@ -204,7 +223,7 @@ module.exports = async (req, res) => {
 
         const total = categories.reduce((s, c) => s + c.events.reduce((es, ev) => es + ev.markets.length, 0), 0);
 
-        res.status(200).json({
+        const payload = {
             categories, total,
             debug: {
                 mentionsSeries: mentionsSeries.length,
@@ -213,8 +232,17 @@ module.exports = async (req, res) => {
                 withMarkets:    categories.reduce((s, c) => s + c.events.length, 0),
             },
             fetchedAt: new Date().toISOString(),
-        });
+        };
+
+        if (total > 0) {
+            _cache = { data: payload, ts: Date.now() };
+            return res.status(200).json(payload);
+        }
+        // Empty result (likely rate-limited) — serve last good data instead
+        if (_cache.data) return res.status(200).json({ ..._cache.data, stale: true });
+        res.status(200).json(payload);
     } catch (err) {
+        if (_cache.data) return res.status(200).json({ ..._cache.data, stale: true });
         res.status(200).json({ categories: [], total: 0, error: err.message, fetchedAt: new Date().toISOString() });
     }
 };

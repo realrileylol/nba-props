@@ -1513,18 +1513,57 @@
             };
         }
 
-        function toggleReason(ticker, side) {
-            const el = document.getElementById('reason-' + ticker.replace(/[^a-zA-Z0-9]/g, '_'));
+        async function toggleReason(ticker, side) {
+            const safe = ticker.replace(/[^a-zA-Z0-9]/g, '_');
+            const el = document.getElementById('reason-' + safe);
             if (!el) return;
-            const r   = generateReasoning(_kalshiData[ticker] || {});
-            const isY = side === 'yes';
             if (el.dataset.open === side) {
                 el.style.display = 'none';
                 el.dataset.open = '';
-            } else {
-                el.dataset.open = side;
-                el.style.display = 'block';
-                el.innerHTML = `<strong style="color:${isY ? 'var(--c-green)' : 'var(--c-red)'}">${isY ? 'YES:' : 'NO:'}</strong> ${isY ? r.yes : r.no}`;
+                return;
+            }
+
+            const m   = _kalshiData[ticker] || {};
+            const r   = generateReasoning(m);
+            const isY = side === 'yes';
+            const pct = isY ? m.yesPct : m.noPct;
+            const odds = isY ? m.yesOdds : m.noOdds;
+            const vol = (m.volume || 0) >= 1000 ? (m.volume / 1000).toFixed(1) + 'k' : (m.volume || 0);
+
+            el.dataset.open = side;
+            el.style.display = 'block';
+            el.innerHTML = `
+                <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--c-text3)">
+                    ${pct != null ? `<span><span style="color:${isY ? 'var(--c-green)' : 'var(--c-red)'}">${pct}%</span> implied</span>` : ''}
+                    ${odds != null ? `<span>${fmtOdds(odds)} odds</span>` : ''}
+                    <span>${vol} vol</span>
+                    <span>${m.status === 'open' ? 'live' : 'pre-open'}</span>
+                </div>
+                <div style="margin-bottom:10px"><strong style="color:${isY ? 'var(--c-green)' : 'var(--c-red)'}">${isY ? 'YES:' : 'NO:'}</strong> ${isY ? r.yes : r.no}</div>
+                <div id="intel-${safe}" style="border-top:1px solid var(--c-border);padding-top:8px;font-size:11px;color:var(--c-text3)">Loading live news…</div>`;
+
+            // Live headlines for the market subject
+            try {
+                const evCtx = (m._eventTitle || '').replace(/what will the announcers say during/i, '').replace(/professional baseball game/i, 'MLB').trim();
+                const q = `${evCtx} ${m.title}`.trim().slice(0, 100);
+                const resp = await fetch(`/api/mention-intel?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(8000) });
+                const data = await resp.json();
+                const box = document.getElementById('intel-' + safe);
+                if (!box || el.dataset.open !== side) return;
+                if (data.items && data.items.length) {
+                    box.innerHTML = `
+                        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--c-text3);margin-bottom:6px">Live News</div>
+                        ${data.items.map(it => `
+                        <a href="${it.link}" target="_blank" rel="noopener" style="display:block;padding:4px 0;color:var(--c-text2);text-decoration:none;font-size:12px;line-height:1.4"
+                           onmouseover="this.style.color='var(--c-text1)'" onmouseout="this.style.color='var(--c-text2)'">
+                            ${it.title}${it.source ? ` <span style="color:var(--c-text3);font-size:10px">· ${it.source}</span>` : ''}
+                        </a>`).join('')}`;
+                } else {
+                    box.innerHTML = '<span style="font-size:11px;color:var(--c-text3)">No recent headlines found for this subject.</span>';
+                }
+            } catch (_) {
+                const box = document.getElementById('intel-' + safe);
+                if (box) box.innerHTML = '<span style="font-size:11px;color:var(--c-text3)">Live news unavailable right now.</span>';
             }
         }
 
@@ -1616,8 +1655,9 @@
             const pane = document.getElementById('kalshi-mentions-pane');
             if (pane) pane.innerHTML = mentionsSkeleton();
             try {
-                const url  = force ? `/api/kalshi-props?_t=${Date.now()}` : '/api/kalshi-props';
-                const res  = await fetch(url, { signal: AbortSignal.timeout(15000) });
+                // No cache-buster: the API caches 30s server-side and at the CDN,
+                // so rapid refreshes return identical data instead of hammering Kalshi
+                const res  = await fetch('/api/kalshi-props', { signal: AbortSignal.timeout(15000) });
                 const data = await res.json();
                 renderMentions(data);
                 mentionsLoaded = !data.error;
@@ -1663,10 +1703,14 @@
             const ts = fetchedAt ? new Date(fetchedAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
             if (meta) meta.textContent = `${total || 0} markets · ${ts}`;
 
-            // Register all markets for reasoning lookups
+            // Register all markets for reasoning lookups (with parent event title
+            // so the live-news intel can search for the right subject)
             (categories || []).forEach(cat =>
                 (cat.events || []).forEach(ev =>
-                    (ev.markets || []).forEach(m => { _kalshiData[m.ticker] = m; })
+                    (ev.markets || []).forEach(m => {
+                        m._eventTitle = ev.title;
+                        _kalshiData[m.ticker] = m;
+                    })
                 )
             );
 
