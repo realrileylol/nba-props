@@ -85,10 +85,14 @@ function toAmericanOdds(p) {
 function validPct(p) { return p != null && p > 0 && p < 100 ? p : null; }
 
 function shapeMarket(m) {
-    // Live ask price first; fall back to last traded price so pre-open
-    // markets still show odds instead of "—"
-    const yesPct = validPct(m.yes_ask) ?? validPct(m.last_price);
-    const noPct  = validPct(m.no_ask)  ?? (yesPct != null ? 100 - yesPct : null);
+    // Try every known price field in priority order: live ask → bid → last trade → prev close
+    const yesPct = validPct(m.yes_ask)
+        ?? validPct(m.yes_bid)
+        ?? validPct(m.last_price)
+        ?? validPct(m.previous_yes_price);
+    const noPct  = validPct(m.no_ask)
+        ?? validPct(m.no_bid)
+        ?? (yesPct != null ? 100 - yesPct : null);
     return {
         ticker:       m.ticker,
         title:        m.yes_sub_title || m.subtitle || m.title || m.ticker,
@@ -197,6 +201,19 @@ module.exports = async (req, res) => {
 
         const total = categories.reduce((s, c) => s + c.events.reduce((es, ev) => es + ev.markets.length, 0), 0);
 
+        // Sample the first few raw nested-market objects so we can see
+        // which price fields Kalshi actually returns in this format.
+        const rawSample = openEvents.flatMap(e => e.markets || []).slice(0, 3).map(m => ({
+            ticker: m.ticker,
+            status: m.status,
+            yes_ask: m.yes_ask,
+            yes_bid: m.yes_bid,
+            no_ask:  m.no_ask,
+            no_bid:  m.no_bid,
+            last_price: m.last_price,
+            previous_yes_price: m.previous_yes_price,
+        }));
+
         res.status(200).json({
             categories, total,
             debug: {
@@ -206,6 +223,7 @@ module.exports = async (req, res) => {
                 mentionEvents:     mentionEvents.length,
                 merged:            merged.size,
                 withMarkets:       categories.reduce((s, c) => s + c.events.length, 0),
+                rawSample,
             },
             fetchedAt: new Date().toISOString(),
         });
