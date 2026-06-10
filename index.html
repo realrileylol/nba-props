@@ -22,59 +22,162 @@
     </script>
     <style>
         :root {
-            --bg: #0a0c10;
-            --accent: #6366f1;
+            --c-bg:      #0c0e14;
+            --c-surface: #111520;
+            --c-border:  #1c2236;
+            --c-border2: #232a3d;
+            --c-text1:   #e1e7f2;
+            --c-text2:   #7c89a8;
+            --c-text3:   #404c65;
+            --c-accent:  #6366f1;
+            --c-green:   #22c55e;
+            --c-red:     #f43f5e;
         }
-        body { background: var(--bg); }
-        .scrollbar::-webkit-scrollbar { width: 4px; }
-        .scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .scrollbar::-webkit-scrollbar-thumb { background: #1e2635; border-radius: 4px; }
 
-        /* ── Card system ─────────────────────────────────────── */
-        .card {
-            background: linear-gradient(180deg, #11151d 0%, #0d1117 100%);
-            border: 1px solid #1c2331;
-            border-radius: 10px;
-            box-shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.25);
-            transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+        *, *::before, *::after { box-sizing: border-box; }
+        body { background: var(--c-bg); font-family: 'Inter', system-ui, sans-serif; }
+        ::selection { background: #6366f130; }
+
+        /* ── Scrollbar ───────────────────────────────────────── */
+        .scrollbar::-webkit-scrollbar { width: 3px; }
+        .scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .scrollbar::-webkit-scrollbar-thumb { background: var(--c-border2); border-radius: 3px; }
+
+        /* ── Surface ─────────────────────────────────────────── */
+        .surface {
+            background: var(--c-surface);
+            border: 1px solid var(--c-border);
         }
-        .card-hover:hover {
-            border-color: #2c3850;
-            box-shadow: 0 2px 4px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.35);
+
+        /* ── Nav tabs (underline style) ──────────────────────── */
+        .nav-tab {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--c-text2);
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            transition: color .15s, border-color .15s;
+            white-space: nowrap;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
         }
-        .card-interactive { cursor: pointer; }
-        .card-interactive:hover { transform: translateY(-1px); }
-        .card-interactive:active { transform: translateY(0); }
+        .nav-tab:hover { color: var(--c-text1); }
+        .nav-tab.active {
+            color: var(--c-text1);
+            border-bottom-color: var(--c-accent);
+        }
+        .nav-tab:disabled {
+            color: var(--c-text3);
+            cursor: not-allowed;
+        }
+        .nav-tab:disabled:hover { color: var(--c-text3); }
+
+        /* ── Pill tabs (category selector) ──────────────────── */
+        .pill-tab {
+            padding: 5px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--c-text2);
+            background: none;
+            border: 1px solid var(--c-border);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all .15s;
+        }
+        .pill-tab:hover { color: var(--c-text1); border-color: var(--c-border2); }
+        .pill-tab.active {
+            color: #fff;
+            background: var(--c-accent);
+            border-color: var(--c-accent);
+        }
+
+        /* ── Market table rows ───────────────────────────────── */
+        .mkt-row {
+            display: grid;
+            grid-template-columns: 1fr 80px 80px 60px;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--c-border);
+            transition: background .1s;
+        }
+        .mkt-row:last-child { border-bottom: none; }
+        .mkt-row:hover { background: rgba(255,255,255,.025); }
+        .mkt-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--c-border2);
+            background: rgba(255,255,255,.03);
+            cursor: pointer;
+            transition: all .15s;
+            min-width: 72px;
+        }
+        .mkt-btn:hover { border-color: #3a4568; background: rgba(255,255,255,.06); }
+        .mkt-btn.yes-fav { border-color: #14532d60; background: #14532d20; }
+        .mkt-btn.no-fav  { border-color: #88172660; background: #88172620; }
+
+        /* ── Accordion ───────────────────────────────────────── */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .reveal { animation: slideDown .16s ease-out; }
 
         /* ── Skeleton shimmer ────────────────────────────────── */
         @keyframes shimmer {
-            0%   { background-position: -400px 0; }
-            100% { background-position: 400px 0; }
+            0%   { background-position: -600px 0; }
+            100% { background-position: 600px 0; }
         }
         .skeleton {
-            background: linear-gradient(90deg, #141a24 25%, #1b2231 50%, #141a24 75%);
-            background-size: 800px 100%;
-            animation: shimmer 1.4s linear infinite;
-            border-radius: 6px;
+            background: linear-gradient(90deg, #151b2a 25%, #1c2438 50%, #151b2a 75%);
+            background-size: 1200px 100%;
+            animation: shimmer 1.6s linear infinite;
+            border-radius: 4px;
         }
 
-        /* ── Accordion reveal ────────────────────────────────── */
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-4px); }
-            to   { opacity: 1; transform: translateY(0); }
-        }
-        .reveal { animation: slideDown .18s ease-out; }
-
-        /* ── Focus rings for accessibility ───────────────────── */
+        /* ── Focus ───────────────────────────────────────────── */
         button:focus-visible, input:focus-visible {
-            outline: 2px solid var(--accent);
+            outline: 2px solid var(--c-accent);
             outline-offset: 2px;
         }
 
-        /* ── Subtle top accent line on section headers ───────── */
-        .section-rule {
-            background: linear-gradient(90deg, var(--accent), transparent 60%);
-            height: 1px;
+        /* ── Odds chip colors ────────────────────────────────── */
+        .odds-pos { color: #4ade80; }
+        .odds-neg { color: #f87171; }
+        .odds-neu { color: var(--c-text2); }
+
+        /* ── Status badge ────────────────────────────────────── */
+        .badge-pre {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--c-text3);
+            border: 1px solid var(--c-border);
+            border-radius: 3px;
+            padding: 1px 5px;
+            white-space: nowrap;
+        }
+        .badge-live {
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #4ade80;
+            border: 1px solid #14532d60;
+            border-radius: 3px;
+            padding: 1px 5px;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -99,18 +202,17 @@
     <script>if(localStorage.getItem('booth-auth')==='1')document.getElementById('login-gate').style.display='none';</script>
 
     <!-- Header -->
-    <header class="border-b border-slate-800/60 bg-[#0a0c10]/95 backdrop-blur-sm sticky top-0 z-10">
-        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+    <header style="border-bottom:1px solid var(--c-border);background:rgba(12,14,20,.97);backdrop-filter:blur(12px)" class="sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-5 flex items-center justify-between" style="height:44px">
             <div class="flex items-center gap-3">
-                <div class="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center text-white font-bold text-[11px] tracking-tight">TB</div>
-                <div>
-                    <h1 class="text-sm font-bold tracking-tight text-white leading-none">The Booth</h1>
-                    <p class="text-[10px] text-slate-500 mt-1 leading-none">Market Intelligence · Live Odds · Broadcaster Props</p>
-                </div>
+                <span style="font-size:13px;font-weight:700;letter-spacing:-.3px;color:var(--c-text1)">The Booth</span>
+                <span style="font-size:11px;color:var(--c-text3);font-weight:400">Market Intelligence</span>
             </div>
-            <div class="hidden sm:flex items-center gap-5 text-[11px] font-medium text-slate-400">
-                <span>NBA</span><span class="text-slate-700">/</span><span>Soccer</span><span class="text-slate-700">/</span><span>Kalshi</span>
-                <span class="flex items-center gap-1.5 pl-4 border-l border-slate-800"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-slate-500">Live</span></span>
+            <div class="hidden sm:flex items-center gap-1" style="font-size:12px">
+                <span style="display:flex;align-items:center;gap:5px;color:var(--c-green)">
+                    <span style="width:5px;height:5px;border-radius:50%;background:var(--c-green);display:inline-block"></span>
+                    Live
+                </span>
             </div>
         </div>
     </header>
@@ -141,71 +243,15 @@
             <div id="picks-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
         </div>
 
-        <!-- ══════════ MENTIONS PREDICTIONS ══════════ -->
-        <div class="mb-6">
-            <div class="flex items-center gap-3 mb-1">
-                <h2 class="text-xl font-bold text-white tracking-tight">Mentions Predictions</h2>
-                <span class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-400 text-[10px] font-semibold uppercase tracking-wide">Beta</span>
-            </div>
-            <p class="text-sm text-slate-500 mb-5">Track which words broadcasters say during live games — and trade on them.</p>
-
-            <!-- Sport selector -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-
-                <button onclick="selectSport('nba')" id="sport-btn-nba"
-                    class="group text-left bg-slate-900 border-2 rounded-lg p-4 transition-all">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 tracking-wide">NBA</span>
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    </div>
-                    <div class="text-sm font-semibold text-white">NBA Finals</div>
-                    <div class="text-[11px] font-medium text-slate-400 mt-0.5">2025 · Active</div>
-                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Breen · Jefferson · Legler<br>G1–G7 · Word Props</div>
-                </button>
-
-                <button onclick="selectSport('soccer')" id="sport-btn-soccer"
-                    class="group text-left bg-slate-900 border-2 rounded-lg p-4 transition-all">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 tracking-wide">SOC</span>
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    </div>
-                    <div class="text-sm font-semibold text-white">Soccer</div>
-                    <div class="text-[11px] font-medium text-slate-400 mt-0.5">2026 World Cup · Live</div>
-                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">WC Groups · Top Leagues<br>Predictions + Live Scores</div>
-                </button>
-
-                <button onclick="selectSport('kalshi')" id="sport-btn-kalshi"
-                    class="group text-left bg-slate-900 border-2 rounded-lg p-4 transition-all">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 tracking-wide">KLS</span>
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    </div>
-                    <div class="text-sm font-semibold text-white">Kalshi</div>
-                    <div class="text-[11px] font-medium text-slate-400 mt-0.5">Mentions · Live</div>
-                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Sports · Politics<br>Announcer Mentions</div>
-                </button>
-
-                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-lg p-4 opacity-40 cursor-not-allowed">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-bold text-slate-500 bg-slate-800/60 border border-slate-700/60 rounded px-1.5 py-0.5 tracking-wide">MLB</span>
-                        <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                    </div>
-                    <div class="text-sm font-semibold text-slate-400">MLB</div>
-                    <div class="text-[11px] text-slate-600 mt-0.5">Coming Soon</div>
-                    <div class="text-[10px] text-slate-700 mt-1.5">No data yet</div>
-                </button>
-
-                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-lg p-4 opacity-40 cursor-not-allowed">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-[11px] font-bold text-slate-500 bg-slate-800/60 border border-slate-700/60 rounded px-1.5 py-0.5 tracking-wide">NFL</span>
-                        <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
-                    </div>
-                    <div class="text-sm font-semibold text-slate-400">NFL</div>
-                    <div class="text-[11px] text-slate-600 mt-0.5">Off Season</div>
-                    <div class="text-[10px] text-slate-700 mt-1.5">Returns Sept</div>
-                </button>
-
-            </div>
+        <!-- ══════════ SPORT NAV ══════════ -->
+        <div style="border-bottom:1px solid var(--c-border);margin-bottom:24px;overflow-x:auto">
+            <nav style="display:flex;align-items:flex-end;white-space:nowrap">
+                <button onclick="selectSport('nba')"    id="sport-btn-nba"    class="nav-tab">NBA Finals <span style="font-size:10px;margin-left:2px;color:var(--c-green)">●</span></button>
+                <button onclick="selectSport('soccer')" id="sport-btn-soccer" class="nav-tab">Soccer</button>
+                <button onclick="selectSport('kalshi')" id="sport-btn-kalshi" class="nav-tab">Kalshi Mentions</button>
+                <button disabled class="nav-tab">MLB <span style="font-size:10px;color:var(--c-text3)">soon</span></button>
+                <button disabled class="nav-tab">NFL <span style="font-size:10px;color:var(--c-text3)">soon</span></button>
+            </nav>
         </div>
 
         <!-- ══════════ NBA CONTENT ══════════ -->
@@ -522,30 +568,20 @@
 
         <!-- ══════════ KALSHI ══════════ -->
         <div id="sport-kalshi" class="hidden">
-            <div class="flex items-center justify-between mb-5">
-                <div class="flex items-center gap-2">
-                    <span class="w-0.5 h-4 bg-indigo-500 rounded-full"></span>
-                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Kalshi Mentions · Sports & Politics</span>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <span style="font-size:13px;font-weight:600;color:var(--c-text1)">Kalshi — All Mentions</span>
+                    <span id="kalshi-mentions-meta" style="font-size:11px;color:var(--c-text3);font-family:'JetBrains Mono',monospace"></span>
                 </div>
-                <div class="flex items-center gap-3">
-                    <span id="kalshi-mentions-meta" class="text-[10px] text-slate-600 font-mono"></span>
-                    <button onclick="fetchMentions(true)"
-                        class="text-[11px] text-slate-400 hover:text-white transition-colors flex items-center gap-1 font-medium px-2.5 py-1.5 border border-slate-800 hover:border-slate-600 rounded-md">
-                        Refresh
-                    </button>
-                </div>
+                <button onclick="fetchMentions(true)" style="font-size:12px;color:var(--c-text2);border:1px solid var(--c-border);border-radius:4px;padding:5px 12px;background:none;cursor:pointer;transition:border-color .15s,color .15s"
+                    onmouseover="this.style.color='var(--c-text1)';this.style.borderColor='var(--c-border2)'"
+                    onmouseout="this.style.color='var(--c-text2)';this.style.borderColor='var(--c-border)'">
+                    Refresh
+                </button>
             </div>
 
-            <!-- Key legend -->
-            <div class="flex flex-wrap items-center gap-x-5 gap-y-1 mb-5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
-                <span>Select Yes / No for rationale</span>
-                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Positive = underdog</span>
-                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Negative = favorite</span>
-            </div>
-
-            <!-- Populated by fetchMentions() / renderMentions() -->
             <div id="kalshi-mentions-pane">
-                <div class="text-slate-700 text-sm text-center py-16">Loading broadcaster mentions…</div>
+                <div style="text-align:center;padding:48px 0;color:var(--c-text3);font-size:13px">Loading…</div>
             </div>
         </div>
 
@@ -649,13 +685,7 @@
             SPORTS.forEach(s => {
                 const btn = document.getElementById('sport-btn-' + s);
                 if (!btn) return;
-                if (s === sport) {
-                    btn.classList.add('border-indigo-500', 'bg-slate-800/60');
-                    btn.classList.remove('border-slate-800');
-                } else {
-                    btn.classList.remove('border-indigo-500', 'bg-slate-800/60');
-                    btn.classList.add('border-slate-800');
-                }
+                btn.classList.toggle('active', s === sport);
             });
             SPORTS.forEach(s => {
                 const pane = document.getElementById('sport-' + s);
@@ -1481,12 +1511,12 @@
             const r   = generateReasoning(_kalshiData[ticker] || {});
             const isY = side === 'yes';
             if (el.dataset.open === side) {
-                el.classList.add('hidden');
+                el.style.display = 'none';
                 el.dataset.open = '';
             } else {
                 el.dataset.open = side;
-                el.classList.remove('hidden');
-                el.innerHTML = `<span class="font-bold ${isY ? 'text-green-400' : 'text-rose-400'}">${isY ? '✓ YES:' : '✗ NO:'}</span> <span class="text-slate-400">${isY ? r.yes : r.no}</span>`;
+                el.style.display = 'block';
+                el.innerHTML = `<strong style="color:${isY ? 'var(--c-green)' : 'var(--c-red)'}">${isY ? 'YES:' : 'NO:'}</strong> ${isY ? r.yes : r.no}`;
             }
         }
 
@@ -1651,50 +1681,53 @@
         }
 
         function selectMentionsCategory(catId) {
-            _activeMentionsCat  = catId;
-            _openEventTicker    = null;
+            _activeMentionsCat = catId;
+            _openEventTicker   = null;
             const pane = document.getElementById('kalshi-mentions-pane');
             if (!pane) return;
 
             const cat = _mentionsCategories.find(c => c.id === catId);
             if (!cat) return;
 
-            // Category tab bar
             const tabs = _mentionsCategories.map(c => `
-                <button onclick="selectMentionsCategory('${c.id}')"
-                    class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${c.id === catId
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'} border border-transparent">
-                    ${c.label}
-                    <span class="ml-1 text-[10px] ${c.id === catId ? 'text-indigo-200' : 'text-slate-600'}">${c.events.length}</span>
+                <button onclick="selectMentionsCategory('${c.id}')" class="pill-tab ${c.id === catId ? 'active' : ''}">
+                    ${c.label} <span style="font-size:10px;margin-left:3px;opacity:.6">${c.events.length}</span>
                 </button>`).join('');
 
-            // Event list (accordion)
             const eventRows = cat.events.map(event => {
                 const isOpen = _openEventTicker === event.eventTicker;
                 const closeTxt = event.closeTime ? fmtCloseTime(event.closeTime) : null;
                 const liveCount = (event.markets || []).filter(m => m.status === 'open').length;
+                const chevron = isOpen ? '▾' : '▸';
                 return `
-                <div class="card ${isOpen ? '' : 'card-hover'} overflow-hidden">
+                <div style="border:1px solid var(--c-border);border-radius:6px;overflow:hidden;margin-bottom:6px">
                     <button onclick="toggleMentionsEvent('${event.eventTicker}')"
-                        class="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-800/30 transition-colors ${isOpen ? 'border-b border-slate-800' : ''}">
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-semibold text-slate-100 leading-snug">${event.title}</p>
-                            <div class="flex items-center gap-3 mt-1">
-                                ${closeTxt ? `<span class="text-[10px] text-slate-500 font-mono">${closeTxt}</span>` : ''}
-                                <span class="text-[10px] text-slate-600 font-mono">${event.total} market${event.total !== 1 ? 's' : ''}</span>
-                                ${liveCount ? `<span class="flex items-center gap-1 text-[10px] text-emerald-500 font-medium"><span class="w-1 h-1 rounded-full bg-emerald-500"></span>${liveCount} live</span>` : `<span class="text-[10px] text-slate-600 font-medium">Opens near game time</span>`}
+                        style="width:100%;display:flex;align-items:center;gap:12px;padding:12px 16px;background:${isOpen ? 'rgba(99,102,241,.05)' : 'none'};border-bottom:${isOpen ? '1px solid var(--c-border)' : 'none'};cursor:pointer;text-align:left;transition:background .1s"
+                        onmouseover="this.style.background='rgba(255,255,255,.025)'"
+                        onmouseout="this.style.background='${isOpen ? 'rgba(99,102,241,.05)' : 'none'}'">
+                        <div style="flex:1;min-width:0">
+                            <p style="font-size:13px;font-weight:500;color:var(--c-text1);line-height:1.3;margin:0">${event.title}</p>
+                            <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+                                ${closeTxt ? `<span style="font-size:11px;color:var(--c-text3);font-family:'JetBrains Mono',monospace">${closeTxt}</span>` : ''}
+                                <span style="font-size:11px;color:var(--c-text3);font-family:'JetBrains Mono',monospace">${event.total} market${event.total !== 1 ? 's' : ''}</span>
+                                ${liveCount ? `<span style="font-size:10px;color:var(--c-green);font-weight:500">● ${liveCount} live</span>` : `<span style="font-size:10px;color:var(--c-text3)">Opens near game time</span>`}
                             </div>
                         </div>
-                        <span class="text-slate-500 text-sm transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}">›</span>
+                        <span style="font-size:11px;color:var(--c-text3)">${chevron}</span>
                     </button>
-                    ${isOpen ? `<div class="divide-y divide-slate-800/50 reveal">${(event.markets || []).map(m => kalshiRow(m)).join('')}</div>` : ''}
+                    ${isOpen ? `
+                    <div class="reveal">
+                        <div style="display:grid;grid-template-columns:1fr 80px 80px 64px;padding:7px 16px 4px;font-size:10px;font-weight:600;color:var(--c-text3);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--c-border)">
+                            <span>Market</span><span style="text-align:center">Yes</span><span style="text-align:center">No</span><span style="text-align:right">Status</span>
+                        </div>
+                        ${(event.markets || []).map(m => kalshiRow(m)).join('')}
+                    </div>` : ''}
                 </div>`;
             }).join('');
 
             pane.innerHTML = `
-                <div class="flex flex-wrap gap-2 mb-5">${tabs}</div>
-                <div class="space-y-2">${eventRows}</div>`;
+                <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">${tabs}</div>
+                <div>${eventRows}</div>`;
         }
 
         function toggleMentionsEvent(ticker) {
@@ -1702,42 +1735,31 @@
             selectMentionsCategory(_activeMentionsCat);
         }
 
-        // Kalshi-style compact market row
         function kalshiRow(m) {
             const yesOdds = fmtOdds(m.yesOdds ?? toAmOdds(m.yesPct));
             const noOdds  = fmtOdds(m.noOdds  ?? toAmOdds(m.noPct));
             const yesFav  = (m.yesPct || 0) >= 50;
             const hasOdds = m.yesOdds != null || m.noOdds != null || m.yesPct;
-            const vol     = (m.volume||0) >= 1000 ? (m.volume/1000).toFixed(1)+'k' : (m.volume||0) > 0 ? String(m.volume) : '';
             const safe    = m.ticker.replace(/[^a-zA-Z0-9]/g, '_');
-            const close   = fmtCloseTime(m.closeTime);
-            const pending = m.status && m.status !== 'open';
+            const live    = m.status === 'open';
+            const yesCls  = hasOdds && yesFav  ? 'yes-fav' : '';
+            const noCls   = hasOdds && !yesFav ? 'no-fav'  : '';
+            const yesClr  = hasOdds ? (yesFav ? 'odds-pos' : 'odds-neu') : 'odds-neu';
+            const noClr   = hasOdds ? (!yesFav ? 'odds-neg' : 'odds-neu') : 'odds-neu';
             return `
-            <div class="border-b border-slate-800/40 last:border-0">
-                <div class="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/20 transition-colors">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                            <p class="text-sm text-slate-200 leading-snug font-medium">${m.title}</p>
-                            ${pending ? '<span class="text-[9px] px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-500 font-semibold uppercase tracking-wide shrink-0">Pre-open</span>' : ''}
-                        </div>
-                        ${m.subtitle ? `<p class="text-[11px] text-slate-600 mt-0.5 leading-snug">${m.subtitle}</p>` : ''}
-                        ${(close||vol) ? `<div class="flex gap-3 mt-1 text-[10px] text-slate-700 font-mono">${close ? `<span>${close}</span>` : ''}${vol ? `<span>${vol} vol</span>` : ''}</div>` : ''}
-                    </div>
-                    <div class="flex items-center gap-1.5 shrink-0">
-                        <button onclick="toggleReason('${m.ticker}','yes')"
-                            class="flex flex-col items-center justify-center ${hasOdds && yesFav ? 'bg-green-950/60 border-green-800/50 hover:bg-green-900/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'} border rounded-lg px-3 py-2 transition-colors min-w-[60px]">
-                            <span class="text-[9px] font-bold uppercase tracking-wide mb-0.5 ${hasOdds && yesFav ? 'text-green-500' : 'text-slate-500'}">Yes</span>
-                            <span class="text-sm font-black ${hasOdds && yesFav ? 'text-green-300' : 'text-slate-500'}">${hasOdds ? yesOdds : '—'}</span>
-                        </button>
-                        <button onclick="toggleReason('${m.ticker}','no')"
-                            class="flex flex-col items-center justify-center ${hasOdds && !yesFav ? 'bg-rose-950/60 border-rose-800/50 hover:bg-rose-900/50' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'} border rounded-lg px-3 py-2 transition-colors min-w-[60px]">
-                            <span class="text-[9px] font-bold uppercase tracking-wide mb-0.5 ${hasOdds && !yesFav ? 'text-rose-500' : 'text-slate-500'}">No</span>
-                            <span class="text-sm font-black ${hasOdds && !yesFav ? 'text-rose-300' : 'text-slate-500'}">${hasOdds ? noOdds : '—'}</span>
-                        </button>
-                    </div>
-                </div>
-                <div id="reason-${safe}" class="hidden border-t border-slate-800/40 bg-slate-800/40 px-4 py-2.5 text-xs text-slate-400 leading-relaxed"></div>
-            </div>`;
+            <div class="mkt-row">
+                <span style="font-size:13px;color:var(--c-text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.title}</span>
+                <button onclick="toggleReason('${m.ticker}','yes')" class="mkt-btn ${yesCls}">
+                    <span style="font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--c-text3);margin-bottom:2px">YES</span>
+                    <span style="font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace" class="${yesClr}">${hasOdds ? yesOdds : '—'}</span>
+                </button>
+                <button onclick="toggleReason('${m.ticker}','no')" class="mkt-btn ${noCls}">
+                    <span style="font-size:9px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--c-text3);margin-bottom:2px">NO</span>
+                    <span style="font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace" class="${noClr}">${hasOdds ? noOdds : '—'}</span>
+                </button>
+                <span style="text-align:right">${live ? '<span class="badge-live">Live</span>' : '<span class="badge-pre">Pre</span>'}</span>
+            </div>
+            <div id="reason-${safe}" style="display:none;padding:10px 16px;font-size:12px;color:var(--c-text2);line-height:1.6;border-top:1px solid var(--c-border);background:rgba(255,255,255,.015)"></div>`;
         }
 
         // ─── H2H PANEL ───────────────────────────────────────────────────────────

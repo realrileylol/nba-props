@@ -131,10 +131,11 @@ module.exports = async (req, res) => {
             return SAY_RE.test(t) || TRUMP_RE.test(t);
         });
 
-        // Single parallel batch — cap at 12 fetches to stay inside budget
-        const toFetch = mentionEvents.slice(0, 12);
+        // Fetch all matches — cap at 25 parallel requests to stay inside Vercel 10s budget
+        const toFetch = mentionEvents.slice(0, 25);
         const marketLists = await Promise.all(toFetch.map(e => fetchEventMarkets(e.event_ticker)));
 
+        // Bucket: Trump / Sports / All Others — NO content filtering, show everything
         const trumpEvents  = [];
         const sportsEvents = [];
         const otherEvents  = [];
@@ -142,15 +143,16 @@ module.exports = async (req, res) => {
             const shaped = shapeEvent(event, marketLists[i]);
             if (!shaped) return;
             const t = event.title || '';
-            if (TRUMP_RE.test(t)) trumpEvents.push(shaped);
+            if (TRUMP_RE.test(t))   trumpEvents.push(shaped);
             else if (SPORTS_RE.test(t)) sportsEvents.push(shaped);
-            else otherEvents.push(shaped);
+            else                    otherEvents.push(shaped);
         });
 
+        // Show ALL mentions — Sports first, Trump second, everything else third
         const categories = [];
-        if (sportsEvents.length) categories.push({ id: 'sports', label: 'Sports', events: sportsEvents });
-        if (trumpEvents.length)  categories.push({ id: 'trump',  label: 'Trump',  events: trumpEvents });
-        if (otherEvents.length)  categories.push({ id: 'other',  label: 'Other',  events: otherEvents });
+        if (sportsEvents.length) categories.push({ id: 'sports', label: 'Sports',   events: sportsEvents });
+        if (trumpEvents.length)  categories.push({ id: 'trump',  label: 'Political', events: trumpEvents });
+        if (otherEvents.length)  categories.push({ id: 'other',  label: 'All Other', events: otherEvents });
 
         const total = categories.reduce((s, c) => s + c.events.reduce((es, ev) => es + ev.markets.length, 0), 0);
 
