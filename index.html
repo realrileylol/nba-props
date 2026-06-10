@@ -3,10 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Booth · Sports Predictions</title>
+    <title>The Booth · Market Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+                    },
+                },
+            },
+        };
+    </script>
     <style>
-        body { background: #080b11; }
+        body { background: #0a0c10; }
         .scrollbar::-webkit-scrollbar { width: 4px; }
         .scrollbar::-webkit-scrollbar-track { background: transparent; }
         .scrollbar::-webkit-scrollbar-thumb { background: #1e2635; border-radius: 4px; }
@@ -16,16 +31,16 @@
 
     <!-- Login Gate -->
     <div id="login-gate" class="fixed inset-0 z-[100] flex items-center justify-center" style="background:rgba(8,11,17,0.85);backdrop-filter:blur(16px)">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl text-center">
-            <div class="text-3xl font-black text-white mb-1">🎙</div>
-            <div class="text-lg font-black text-white mb-1">The Booth</div>
-            <div class="text-[11px] text-slate-600 uppercase tracking-widest mb-7">Private Access · Sports Predictions</div>
+        <div class="bg-slate-900 border border-slate-800 rounded-lg p-8 max-w-sm w-full mx-4 shadow-2xl text-center">
+            <div class="w-10 h-10 mx-auto mb-4 rounded-md bg-indigo-600 flex items-center justify-center text-white font-bold text-sm tracking-tight">TB</div>
+            <div class="text-lg font-bold text-white mb-1 tracking-tight">The Booth</div>
+            <div class="text-[11px] text-slate-500 uppercase tracking-widest mb-7">Private Access · Market Intelligence</div>
             <input id="login-input" type="password" placeholder="Access code"
-                class="w-full bg-slate-800 border border-slate-700 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-sm mb-3 outline-none transition-colors text-center tracking-widest"
+                class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-md px-4 py-3 text-white text-sm mb-3 outline-none transition-colors text-center tracking-widest"
                 onkeydown="if(event.key==='Enter')checkLogin()">
             <button onclick="checkLogin()"
-                class="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-950 font-black rounded-xl px-4 py-3 text-sm transition-colors">
-                Enter The Booth
+                class="w-full bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-semibold rounded-md px-4 py-3 text-sm transition-colors">
+                Sign In
             </button>
             <div id="login-error" class="text-rose-400 text-xs mt-3 hidden">Incorrect code — try again</div>
         </div>
@@ -33,14 +48,18 @@
     <script>if(localStorage.getItem('booth-auth')==='1')document.getElementById('login-gate').style.display='none';</script>
 
     <!-- Header -->
-    <header class="border-b border-slate-800/60 bg-slate-950/90 backdrop-blur-sm sticky top-0 z-10">
-        <div class="max-w-5xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
-            <div>
-                <h1 class="text-base font-black tracking-tight text-white uppercase">The Booth</h1>
-                <p class="text-[11px] text-slate-500 mt-0.5">Sports Predictions · Live Odds · Broadcaster Props</p>
+    <header class="border-b border-slate-800/60 bg-[#0a0c10]/95 backdrop-blur-sm sticky top-0 z-10">
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded-md bg-indigo-600 flex items-center justify-center text-white font-bold text-[11px] tracking-tight">TB</div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-tight text-white leading-none">The Booth</h1>
+                    <p class="text-[10px] text-slate-500 mt-1 leading-none">Market Intelligence · Live Odds · Broadcaster Props</p>
+                </div>
             </div>
-            <div class="flex gap-1.5 flex-wrap justify-end items-center">
-                <span class="text-[10px] text-slate-700 font-semibold hidden sm:block">🏀 NBA &nbsp;·&nbsp; ⚽ Soccer &nbsp;·&nbsp; ⚡ Kalshi</span>
+            <div class="hidden sm:flex items-center gap-5 text-[11px] font-medium text-slate-400">
+                <span>NBA</span><span class="text-slate-700">/</span><span>Soccer</span><span class="text-slate-700">/</span><span>Kalshi</span>
+                <span class="flex items-center gap-1.5 pl-4 border-l border-slate-800"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span><span class="text-slate-500">Live</span></span>
             </div>
         </div>
     </header>
@@ -64,9 +83,9 @@
         <!-- ══════════ KALSHI BEST PICKS ══════════ -->
         <div id="kalshi-best-picks" class="mb-6 hidden">
             <div class="flex items-center gap-2 mb-3">
-                <span class="w-1 h-3.5 bg-purple-400 rounded-full"></span>
-                <h3 class="text-[11px] font-bold text-purple-400 uppercase tracking-widest">⚡ Kalshi · Today's Best Bets</h3>
-                <span id="picks-ts" class="ml-auto text-[10px] text-slate-700"></span>
+                <span class="w-0.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                <h3 class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Kalshi · Today's Best Picks</h3>
+                <span id="picks-ts" class="ml-auto text-[10px] text-slate-600 font-mono"></span>
             </div>
             <div id="picks-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2"></div>
         </div>
@@ -74,48 +93,63 @@
         <!-- ══════════ MENTIONS PREDICTIONS ══════════ -->
         <div class="mb-6">
             <div class="flex items-center gap-3 mb-1">
-                <h2 class="text-2xl font-black text-white tracking-tight">Mentions Predictions</h2>
-                <span class="px-2 py-0.5 bg-amber-400/10 border border-amber-500/30 rounded text-amber-400 text-[10px] font-bold uppercase tracking-wide">Beta</span>
+                <h2 class="text-xl font-bold text-white tracking-tight">Mentions Predictions</h2>
+                <span class="px-1.5 py-0.5 bg-slate-800 border border-slate-700 rounded text-slate-400 text-[10px] font-semibold uppercase tracking-wide">Beta</span>
             </div>
-            <p class="text-sm text-slate-500 mb-5">Track which words broadcasters say during live games — and bet on them.</p>
+            <p class="text-sm text-slate-500 mb-5">Track which words broadcasters say during live games — and trade on them.</p>
 
             <!-- Sport selector -->
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
 
                 <button onclick="selectSport('nba')" id="sport-btn-nba"
-                    class="group text-left bg-slate-900 border-2 rounded-xl p-4 transition-all">
-                    <div class="text-xl mb-2">🏀</div>
-                    <div class="text-sm font-black text-white">NBA</div>
-                    <div class="text-[11px] font-semibold text-amber-400 mt-0.5">2025 Finals · Active</div>
+                    class="group text-left bg-slate-900 border-2 rounded-lg p-4 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 tracking-wide">NBA</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    </div>
+                    <div class="text-sm font-semibold text-white">NBA Finals</div>
+                    <div class="text-[11px] font-medium text-slate-400 mt-0.5">2025 · Active</div>
                     <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Breen · Jefferson · Legler<br>G1–G7 · Word Props</div>
                 </button>
 
                 <button onclick="selectSport('soccer')" id="sport-btn-soccer"
-                    class="group text-left bg-slate-900 border-2 rounded-xl p-4 transition-all">
-                    <div class="text-xl mb-2">⚽</div>
-                    <div class="text-sm font-black text-white">Soccer</div>
-                    <div class="text-[11px] font-semibold text-emerald-400 mt-0.5">2026 World Cup · Live</div>
+                    class="group text-left bg-slate-900 border-2 rounded-lg p-4 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 tracking-wide">SOC</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    </div>
+                    <div class="text-sm font-semibold text-white">Soccer</div>
+                    <div class="text-[11px] font-medium text-slate-400 mt-0.5">2026 World Cup · Live</div>
                     <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">WC Groups · Top Leagues<br>Predictions + Live Scores</div>
                 </button>
 
                 <button onclick="selectSport('kalshi')" id="sport-btn-kalshi"
-                    class="group text-left bg-slate-900 border-2 rounded-xl p-4 transition-all">
-                    <div class="text-xl mb-2">⚡</div>
-                    <div class="text-sm font-black text-white">Kalshi</div>
-                    <div class="text-[11px] font-semibold text-purple-400 mt-0.5">All Markets · Live</div>
-                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Sports · Politics · Economics<br>Crypto · Live Odds</div>
+                    class="group text-left bg-slate-900 border-2 rounded-lg p-4 transition-all">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-bold text-slate-300 bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 tracking-wide">KLS</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    </div>
+                    <div class="text-sm font-semibold text-white">Kalshi</div>
+                    <div class="text-[11px] font-medium text-slate-400 mt-0.5">Mentions · Live</div>
+                    <div class="text-[10px] text-slate-500 mt-1.5 leading-relaxed">Sports · Politics<br>Announcer Mentions</div>
                 </button>
 
-                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
-                    <div class="text-xl mb-2 grayscale">⚾</div>
-                    <div class="text-sm font-black text-slate-400">MLB</div>
+                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-lg p-4 opacity-40 cursor-not-allowed">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-bold text-slate-500 bg-slate-800/60 border border-slate-700/60 rounded px-1.5 py-0.5 tracking-wide">MLB</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+                    </div>
+                    <div class="text-sm font-semibold text-slate-400">MLB</div>
                     <div class="text-[11px] text-slate-600 mt-0.5">Coming Soon</div>
                     <div class="text-[10px] text-slate-700 mt-1.5">No data yet</div>
                 </button>
 
-                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-xl p-4 opacity-40 cursor-not-allowed">
-                    <div class="text-xl mb-2 grayscale">🏈</div>
-                    <div class="text-sm font-black text-slate-400">NFL</div>
+                <button disabled class="text-left bg-slate-900/50 border border-slate-800 rounded-lg p-4 opacity-40 cursor-not-allowed">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-[11px] font-bold text-slate-500 bg-slate-800/60 border border-slate-700/60 rounded px-1.5 py-0.5 tracking-wide">NFL</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+                    </div>
+                    <div class="text-sm font-semibold text-slate-400">NFL</div>
                     <div class="text-[11px] text-slate-600 mt-0.5">Off Season</div>
                     <div class="text-[10px] text-slate-700 mt-1.5">Returns Sept</div>
                 </button>
@@ -439,23 +473,23 @@
         <div id="sport-kalshi" class="hidden">
             <div class="flex items-center justify-between mb-5">
                 <div class="flex items-center gap-2">
-                    <span class="w-1 h-4 bg-purple-400 rounded-full"></span>
-                    <span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Kalshi · Sports · Politics · Economics · Crypto</span>
+                    <span class="w-0.5 h-4 bg-indigo-500 rounded-full"></span>
+                    <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Kalshi Mentions · Sports & Politics</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span id="kalshi-mentions-meta" class="text-[10px] text-slate-700"></span>
+                    <span id="kalshi-mentions-meta" class="text-[10px] text-slate-600 font-mono"></span>
                     <button onclick="fetchMentions(true)"
-                        class="text-xs text-slate-600 hover:text-slate-300 transition-colors flex items-center gap-1 font-semibold px-2 py-1 hover:bg-slate-800 rounded-lg">
-                        ↺ Refresh
+                        class="text-[11px] text-slate-400 hover:text-white transition-colors flex items-center gap-1 font-medium px-2.5 py-1.5 border border-slate-800 hover:border-slate-600 rounded-md">
+                        Refresh
                     </button>
                 </div>
             </div>
 
             <!-- Key legend -->
-            <div class="flex flex-wrap gap-4 mb-5 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">
-                <span>💡 Tap YES or NO for reasoning</span>
-                <span class="text-green-700">Positive = underdog odds</span>
-                <span class="text-rose-700">Negative = favorite odds</span>
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-1 mb-5 text-[10px] font-medium text-slate-500 uppercase tracking-wide">
+                <span>Select Yes / No for rationale</span>
+                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Positive = underdog</span>
+                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Negative = favorite</span>
             </div>
 
             <!-- Populated by fetchMentions() / renderMentions() -->
@@ -469,9 +503,9 @@
     <!-- ══════════ ROADMAP ══════════ -->
     <div class="max-w-5xl mx-auto px-4 mt-8 mb-2">
         <button onclick="this.nextElementSibling.classList.toggle('hidden')"
-            class="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-900/60 border border-slate-800/60 rounded-xl text-left hover:bg-slate-900 transition-colors group">
-            <span class="text-[10px] font-bold text-slate-600 uppercase tracking-widest group-hover:text-slate-400 transition-colors">🗺 Feature Roadmap</span>
-            <span class="ml-auto text-[10px] text-slate-700 font-mono">1/5 built ▾</span>
+            class="w-full flex items-center gap-2 px-4 py-2.5 bg-slate-900/60 border border-slate-800/60 rounded-lg text-left hover:bg-slate-900 transition-colors group">
+            <span class="text-[10px] font-semibold text-slate-500 uppercase tracking-widest group-hover:text-slate-300 transition-colors">Product Roadmap</span>
+            <span class="ml-auto text-[10px] text-slate-600 font-mono">1 of 5 shipped ▾</span>
         </button>
         <div class="hidden bg-slate-900/60 border border-slate-800/60 border-t-0 rounded-b-xl px-4 pt-3 pb-4 -mt-1">
             <div class="space-y-2 mt-1">
@@ -565,10 +599,10 @@
                 const btn = document.getElementById('sport-btn-' + s);
                 if (!btn) return;
                 if (s === sport) {
-                    btn.classList.add('border-amber-500', 'bg-slate-800');
+                    btn.classList.add('border-indigo-500', 'bg-slate-800/60');
                     btn.classList.remove('border-slate-800');
                 } else {
-                    btn.classList.remove('border-amber-500', 'bg-slate-800');
+                    btn.classList.remove('border-indigo-500', 'bg-slate-800/60');
                     btn.classList.add('border-slate-800');
                 }
             });
@@ -1469,7 +1503,7 @@
             }
         }
 
-        function renderMentions({ categories, total, error, fetchedAt }) {
+        function renderMentions({ categories, total, error, fetchedAt, debug }) {
             const pane = document.getElementById('kalshi-mentions-pane');
             const meta = document.getElementById('kalshi-mentions-meta');
 
@@ -1502,19 +1536,20 @@
             if (categories && categories.length) {
                 pane.innerHTML = categories.map(cat => `
                     <div class="mb-8">
-                        <div class="flex items-center gap-2 px-1 mb-3">
-                            <h3 class="text-sm font-black text-white">${cat.label}</h3>
-                            <span class="text-[10px] text-slate-600 ml-1">${cat.events.length} event${cat.events.length !== 1 ? 's' : ''}</span>
+                        <div class="flex items-center gap-2.5 px-1 mb-3">
+                            <span class="w-0.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                            <h3 class="text-[11px] font-semibold text-slate-300 uppercase tracking-widest">${cat.label}</h3>
+                            <span class="text-[10px] text-slate-600 font-mono">${cat.events.length} event${cat.events.length !== 1 ? 's' : ''}</span>
                         </div>
                         <div class="space-y-3">
                             ${cat.events.map(event => `
-                                <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                                    <div class="flex items-center justify-between px-4 py-3 bg-slate-800/40 border-b border-slate-800/60">
+                                <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
+                                    <div class="flex items-center justify-between px-4 py-3 bg-slate-800/30 border-b border-slate-800">
                                         <div class="min-w-0 flex-1">
-                                            <p class="text-sm font-bold text-white leading-snug">${event.title}</p>
-                                            ${event.closeTime ? `<p class="text-[10px] text-slate-600 mt-0.5 font-mono">${fmtCloseTime(event.closeTime)}</p>` : ''}
+                                            <p class="text-sm font-semibold text-white leading-snug">${event.title}</p>
+                                            ${event.closeTime ? `<p class="text-[10px] text-slate-500 mt-0.5 font-mono">${fmtCloseTime(event.closeTime)}</p>` : ''}
                                         </div>
-                                        <span class="text-[10px] text-slate-600 shrink-0 ml-4">${event.total} market${event.total !== 1 ? 's' : ''}</span>
+                                        <span class="text-[10px] text-slate-500 shrink-0 ml-4 font-mono">${event.total} market${event.total !== 1 ? 's' : ''}</span>
                                     </div>
                                     ${(event.markets || []).map(m => kalshiRow(m)).join('')}
                                 </div>
@@ -1522,11 +1557,13 @@
                         </div>
                     </div>`).join('');
             } else {
+                const dbg = debug ? `series: ${debug.mentionsSeries} · scanned: ${debug.scannedEvents} · with markets: ${debug.eventsWithMarkets}` : '';
                 pane.innerHTML = `
-                    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-12 text-center">
-                        <p class="text-slate-500 text-sm">No mentions markets found right now.</p>
-                        <p class="text-slate-600 text-xs mt-1">Kalshi may have limited activity — try again shortly.</p>
-                        <button onclick="fetchMentions(true)" class="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 font-semibold transition-colors">↺ Refresh</button>
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg px-4 py-12 text-center">
+                        <p class="text-slate-400 text-sm font-medium">No open mentions markets right now</p>
+                        <p class="text-slate-600 text-xs mt-1">Mentions markets open shortly before each broadcast — check back near game time.</p>
+                        ${dbg ? `<p class="text-slate-700 text-[10px] mt-2 font-mono">${dbg}</p>` : ''}
+                        <button onclick="fetchMentions(true)" class="mt-4 px-4 py-2 border border-slate-700 hover:border-slate-500 rounded-md text-sm text-slate-300 font-medium transition-colors">Refresh</button>
                     </div>`;
             }
         }

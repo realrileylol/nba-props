@@ -1,7 +1,14 @@
-// Kalshi Mentions — mirrors the /category/mentions page
-// Round 1: fetch events from Mentions + Sports + Politics categories
-// Round 2: fetch markets per relevant event (parallel)
-// Returns hierarchical: { categories: [{id, label, events: [{title, markets}]}] }
+// Kalshi Mentions — mirrors kalshi.com/category/mentions
+//
+// Strategy (GET /events does NOT support a category param — that was the bug):
+//   Round 1 (parallel):
+//     a) GET /series/?category=Mentions  → authoritative list of mentions series
+//     b) Paginated scan of GET /events?status=open (up to 4 pages) → title-match fallback
+//   Round 2 (parallel):
+//     For each relevant series: GET /events?series_ticker=X&with_nested_markets=true
+//     For scan-found events not already covered: GET /markets?event_ticker=X
+//
+// Budget: Vercel Hobby 10s hard limit. Round 1 ≤4.5s, Round 2 ≤4s.
 
 const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
@@ -13,47 +20,73 @@ function getHeaders() {
     };
 }
 
-async function fetchEventsByCategory(category) {
+async function getJSON(url, timeoutMs) {
     try {
-        const url = `${KALSHI_BASE}/events?status=open&limit=200&category=${encodeURIComponent(category)}`;
-        const r = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(5000) });
-        if (!r.ok) return [];
-        const d = await r.json();
-        return d.events || [];
-    } catch (_) { return []; }
+        const r = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(timeoutMs) });
+        if (!r.ok) return null;
+        return await r.json();
+    } catch (_) { return null; }
 }
 
-async function fetchAllEvents() {
-    try {
-        const url = `${KALSHI_BASE}/events?status=open&limit=200`;
-        const r = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(5000) });
-        if (!r.ok) return [];
-        const d = await r.json();
-        return d.events || [];
-    } catch (_) { return []; }
+// ── Round 1a: series list for the Mentions category ────────────────────────
+async function fetchMentionsSeries() {
+    const d = await getJSON(`${KALSHI_BASE}/series/?category=Mentions`, 4500);
+    return d?.series || [];
+}
+
+// ── Round 1b: paginated open-events scan, title-filtered as we go ──────────
+const SAY_RE   = /\bsay\b|\bsays\b|\bsaid\b|\bsaying\b|\bmention/i;
+const TRUMP_RE = /\btrump\b/i;
+const SPORTS_RE = /baseball|basketball|hockey|football|soccer|\bnba\b|\bmlb\b|\bnhl\b|\bnfl\b|\bmls\b|announcer|tennis|golf|\bgame\b/i;
+
+async function scanEventsForMentions() {
+    const found = [];
+    let cursor = null;
+    const deadline = Date.now() + 4500;
+    for (let page = 0; page < 4 && Date.now() < deadline; page++) {
+        const qs = new URLSearchParams({ status: 'open', limit: '200' });
+        if (cursor) qs.set('cursor', cursor);
+        const d = await getJSON(`${KALSHI_BASE}/events?${qs}`, Math.max(1000, deadline - Date.now()));
+        if (!d) break;
+        (d.events || []).forEach(e => {
+            const t = e.title || '';
+            if (SAY_RE.test(t) || TRUMP_RE.test(t)) found.push(e);
+        });
+        cursor = d.cursor;
+        if (!cursor || !(d.events || []).length) break;
+    }
+    return found;
+}
+
+// ── Round 2 fetchers ────────────────────────────────────────────────────────
+async function fetchSeriesEvents(seriesTicker) {
+    const qs = new URLSearchParams({
+        status: 'open', limit: '10',
+        series_ticker: seriesTicker,
+        with_nested_markets: 'true',
+    });
+    const d = await getJSON(`${KALSHI_BASE}/events?${qs}`, 4000);
+    return d?.events || [];
 }
 
 async function fetchEventMarkets(eventTicker) {
-    try {
-        const url = `${KALSHI_BASE}/markets?status=open&limit=50&event_ticker=${encodeURIComponent(eventTicker)}`;
-        const r = await fetch(url, { headers: getHeaders(), signal: AbortSignal.timeout(4000) });
-        if (!r.ok) return [];
-        const d = await r.json();
-        return d.markets || [];
-    } catch (_) { return []; }
+    const qs = new URLSearchParams({ status: 'open', limit: '50', event_ticker: eventTicker });
+    const d = await getJSON(`${KALSHI_BASE}/markets?${qs}`, 4000);
+    return d?.markets || [];
 }
 
+// ── Shaping ─────────────────────────────────────────────────────────────────
 function toAmericanOdds(p) {
     if (p == null || p <= 0 || p >= 100) return null;
     const f = p / 100;
     return f >= 0.5 ? Math.round(-(f / (1 - f)) * 100) : Math.round(((1 - f) / f) * 100);
 }
 
-function shape(m) {
+function shapeMarket(m) {
     return {
         ticker:       m.ticker,
-        title:        m.title || m.subtitle || m.ticker,
-        subtitle:     m.subtitle || null,
+        title:        m.yes_sub_title || m.subtitle || m.title || m.ticker,
+        subtitle:     null,
         yesOdds:      toAmericanOdds(m.yes_ask ?? null),
         noOdds:       toAmericanOdds(m.no_ask  ?? null),
         yesPct:       m.yes_ask ?? null,
@@ -64,21 +97,20 @@ function shape(m) {
     };
 }
 
-// A "mentions" event talks about what someone will SAY
-const SAY_RE     = /\bsay\b|\bsays\b|\bsaid\b|\bsaying\b|\bmention\b|\bannouncer/i;
-const SPORTS_RE  = /baseball|basketball|hockey|football|soccer|\bnba\b|\bmlb\b|\bnhl\b|\bnfl\b|\bmls\b|game|sport|announcer|tennis|golf/i;
-const TRUMP_RE   = /\btrump\b/i;
+function shapeEvent(event, rawMarkets) {
+    const markets = (rawMarkets || []).map(shapeMarket).sort((a, b) => (b.volume || 0) - (a.volume || 0));
+    if (!markets.length) return null;
+    return {
+        eventTicker: event.event_ticker,
+        title:       event.title,
+        closeTime:   event.close_time || markets[0].closeTime || null,
+        total:       markets.length,
+        markets:     markets.slice(0, 20),
+    };
+}
 
-function isSportsEvent(e) {
-    const t = e.title || '';
-    return SAY_RE.test(t) && SPORTS_RE.test(t);
-}
-function isTrumpEvent(e) {
-    return TRUMP_RE.test(e.title || '');
-}
-function isMentionsEvent(e) {
-    return SAY_RE.test(e.title || '');
-}
+function isTrump(title) { return TRUMP_RE.test(title || ''); }
+function isSports(title) { return SPORTS_RE.test(title || ''); }
 
 module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=15');
@@ -93,72 +125,67 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Round 1: fetch events from multiple categories in parallel
-        const [mentionsEvents, sportsEvents, politicsEvents, allEvents] = await Promise.all([
-            fetchEventsByCategory('Mentions'),
-            fetchEventsByCategory('Sports'),
-            fetchEventsByCategory('Politics'),
-            fetchAllEvents(),
+        // Round 1
+        const [mentionsSeries, scannedEvents] = await Promise.all([
+            fetchMentionsSeries(),
+            scanEventsForMentions(),
         ]);
 
-        // Merge + deduplicate
-        const seenTickers = new Set();
-        const combined = [...mentionsEvents, ...sportsEvents, ...politicsEvents, ...allEvents]
-            .filter(e => {
-                if (!e.event_ticker || seenTickers.has(e.event_ticker)) return false;
-                seenTickers.add(e.event_ticker);
-                return true;
-            });
+        // Round 2a: events (with nested markets) for up to 10 mentions series
+        const seriesToFetch = mentionsSeries.slice(0, 10);
+        const seriesEventLists = await Promise.all(
+            seriesToFetch.map(s => fetchSeriesEvents(s.ticker))
+        );
 
-        // Separate into sports mentions and Trump mentions
-        let sportsBucket = combined.filter(isSportsEvent);
-        let trumpBucket  = combined.filter(isTrumpEvent);
+        const events = [];           // { event, markets }
+        const seenEvents = new Set();
 
-        // If no SAY-style sports events found, fall back to all mentions events
-        if (!sportsBucket.length) {
-            sportsBucket = combined.filter(e => isMentionsEvent(e) && !TRUMP_RE.test(e.title || ''));
-        }
+        seriesEventLists.flat().forEach(e => {
+            if (!e.event_ticker || seenEvents.has(e.event_ticker)) return;
+            seenEvents.add(e.event_ticker);
+            events.push({ event: e, markets: e.markets || [] });
+        });
 
-        // Cap to keep within Vercel time budget: 7 sports + 5 trump = 12 parallel market fetches × 4s = 4s
-        const sportsToFetch = sportsBucket.slice(0, 7);
-        const trumpToFetch  = trumpBucket.slice(0, 5);
-        const allToFetch    = [...sportsToFetch, ...trumpToFetch];
-
-        if (!allToFetch.length) {
-            return res.status(200).json({
-                categories: [], total: 0,
-                fetchedAt: new Date().toISOString(),
+        // Round 2b: scanned events not already covered (cap 8 extra fetches)
+        const extra = scannedEvents
+            .filter(e => e.event_ticker && !seenEvents.has(e.event_ticker))
+            .slice(0, 8);
+        if (extra.length) {
+            const extraMarkets = await Promise.all(extra.map(e => fetchEventMarkets(e.event_ticker)));
+            extra.forEach((e, i) => {
+                seenEvents.add(e.event_ticker);
+                events.push({ event: e, markets: extraMarkets[i] });
             });
         }
 
-        // Round 2: fetch markets for each event in parallel
-        const marketResults = await Promise.all(allToFetch.map(e => fetchEventMarkets(e.event_ticker)));
+        // Bucket: Trump first match wins, then sports, rest under Other
+        const trumpEvents  = [];
+        const sportsEvents = [];
+        const otherEvents  = [];
+        events.forEach(({ event, markets }) => {
+            const shaped = shapeEvent(event, markets);
+            if (!shaped) return;
+            if (isTrump(event.title)) trumpEvents.push(shaped);
+            else if (isSports(event.title)) sportsEvents.push(shaped);
+            else otherEvents.push(shaped);
+        });
 
-        function buildCategory(id, label, events, offset) {
-            const catEvents = events
-                .map((event, i) => {
-                    const raw     = marketResults[offset + i] || [];
-                    const markets = raw.map(shape).sort((a, b) => (b.volume || 0) - (a.volume || 0));
-                    if (!markets.length) return null;
-                    return {
-                        eventTicker: event.event_ticker,
-                        title:       event.title,
-                        closeTime:   event.close_time || null,
-                        total:       raw.length,         // real total from Kalshi
-                        markets:     markets.slice(0, 15), // show top 15 per event
-                    };
-                })
-                .filter(Boolean);
-            return catEvents.length ? { id, label, events: catEvents } : null;
-        }
+        const categories = [];
+        if (sportsEvents.length) categories.push({ id: 'sports', label: 'Sports — Announcer Mentions', events: sportsEvents });
+        if (trumpEvents.length)  categories.push({ id: 'trump',  label: 'Politics — Trump Mentions',   events: trumpEvents });
+        if (otherEvents.length)  categories.push({ id: 'other',  label: 'Other Mentions',              events: otherEvents });
 
-        const sportsCategory = buildCategory('sports', '🏀 Sports · Announcer Mentions', sportsToFetch, 0);
-        const trumpCategory  = buildCategory('trump',  '🏛️ Trump Mentions',               trumpToFetch,  sportsToFetch.length);
-
-        const categories = [sportsCategory, trumpCategory].filter(Boolean);
         const total = categories.reduce((s, c) => s + c.events.reduce((es, ev) => es + ev.markets.length, 0), 0);
 
-        res.status(200).json({ categories, total, fetchedAt: new Date().toISOString() });
+        res.status(200).json({
+            categories, total,
+            debug: {
+                mentionsSeries: mentionsSeries.length,
+                scannedEvents:  scannedEvents.length,
+                eventsWithMarkets: events.length,
+            },
+            fetchedAt: new Date().toISOString(),
+        });
     } catch (err) {
         res.status(200).json({
             categories: [], total: 0,
