@@ -246,9 +246,8 @@
         <!-- ══════════ SPORT NAV ══════════ -->
         <div style="border-bottom:1px solid var(--c-border);margin-bottom:24px;overflow-x:auto">
             <nav style="display:flex;align-items:flex-end;white-space:nowrap">
-                <button onclick="selectSport('nba')"    id="sport-btn-nba"    class="nav-tab">NBA Finals <span style="font-size:10px;margin-left:2px;color:var(--c-green)">●</span></button>
-                <button onclick="selectSport('soccer')" id="sport-btn-soccer" class="nav-tab">Soccer</button>
                 <button onclick="selectSport('kalshi')" id="sport-btn-kalshi" class="nav-tab">Kalshi Mentions</button>
+                <button onclick="selectSport('soccer')" id="sport-btn-soccer" class="nav-tab">Soccer</button>
                 <button disabled class="nav-tab">MLB <span style="font-size:10px;color:var(--c-text3)">soon</span></button>
                 <button disabled class="nav-tab">NFL <span style="font-size:10px;color:var(--c-text3)">soon</span></button>
             </nav>
@@ -679,7 +678,7 @@
 
         // ─── SPORT SELECTOR ─────────────────────────────────────────────────────
 
-        const SPORTS = ['nba', 'soccer', 'kalshi'];
+        const SPORTS = ['soccer', 'kalshi'];
 
         function selectSport(sport) {
             SPORTS.forEach(s => {
@@ -1523,47 +1522,67 @@
                 return;
             }
 
-            const m   = _kalshiData[ticker] || {};
-            const r   = generateReasoning(m);
-            const isY = side === 'yes';
-            const pct = isY ? m.yesPct : m.noPct;
+            const m    = _kalshiData[ticker] || {};
+            const isY  = side === 'yes';
+            const pct  = isY ? m.yesPct  : m.noPct;
             const odds = isY ? m.yesOdds : m.noOdds;
-            const vol = (m.volume || 0) >= 1000 ? (m.volume / 1000).toFixed(1) + 'k' : (m.volume || 0);
+            const vol  = (m.volume || 0) >= 1000 ? (m.volume / 1000).toFixed(1) + 'k' : (m.volume || 0) || '—';
+            const col  = isY ? 'var(--c-green)' : 'var(--c-red)';
 
             el.dataset.open = side;
             el.style.display = 'block';
             el.innerHTML = `
-                <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--c-text3)">
-                    ${pct != null ? `<span><span style="color:${isY ? 'var(--c-green)' : 'var(--c-red)'}">${pct}%</span> implied</span>` : ''}
-                    ${odds != null ? `<span>${fmtOdds(odds)} odds</span>` : ''}
+                <div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--c-text3)">
+                    ${pct  != null ? `<span><span style="color:${col}">${pct}%</span> implied</span>` : ''}
+                    ${odds != null ? `<span style="color:${col}">${fmtOdds(odds)}</span>` : ''}
                     <span>${vol} vol</span>
-                    <span>${m.status === 'open' ? 'live' : 'pre-open'}</span>
+                    <span class="${m.status === 'open' ? 'badge-live' : 'badge-pre'}">${m.status === 'open' ? 'Live' : 'Pre'}</span>
                 </div>
-                <div style="margin-bottom:10px"><strong style="color:${isY ? 'var(--c-green)' : 'var(--c-red)'}">${isY ? 'YES:' : 'NO:'}</strong> ${isY ? r.yes : r.no}</div>
-                <div id="intel-${safe}" style="border-top:1px solid var(--c-border);padding-top:8px;font-size:11px;color:var(--c-text3)">Loading live news…</div>`;
+                <div id="signal-${safe}" style="margin-bottom:10px;padding:10px 12px;border-radius:6px;background:rgba(99,102,241,.06);border:1px solid var(--c-border)">
+                    <span style="font-size:11px;color:var(--c-text3)">Analyzing narrative context…</span>
+                </div>
+                <div id="headlines-${safe}" style="font-size:11px;color:var(--c-text3)"></div>`;
 
-            // Live headlines for the market subject
+            // Fetch Claude signal + live news together
             try {
-                const evCtx = (m._eventTitle || '').replace(/what will the announcers say during/i, '').replace(/professional baseball game/i, 'MLB').trim();
-                const q = `${evCtx} ${m.title}`.trim().slice(0, 100);
-                const resp = await fetch(`/api/mention-intel?q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(8000) });
+                const evTitle  = encodeURIComponent(m._eventTitle  || '');
+                const mktTitle = encodeURIComponent(m.title        || '');
+                const url = `/api/market-signal?title=${mktTitle}&eventTitle=${evTitle}` +
+                            `&yesPct=${m.yesPct||''}&yesOdds=${m.yesOdds||''}&noOdds=${m.noOdds||''}`;
+                const resp = await fetch(url, { signal: AbortSignal.timeout(12000) });
                 const data = await resp.json();
-                const box = document.getElementById('intel-' + safe);
-                if (!box || el.dataset.open !== side) return;
-                if (data.items && data.items.length) {
-                    box.innerHTML = `
-                        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--c-text3);margin-bottom:6px">Live News</div>
-                        ${data.items.map(it => `
-                        <a href="${it.link}" target="_blank" rel="noopener" style="display:block;padding:4px 0;color:var(--c-text2);text-decoration:none;font-size:12px;line-height:1.4"
+
+                const sigBox  = document.getElementById('signal-' + safe);
+                const hdlBox  = document.getElementById('headlines-' + safe);
+                if (!sigBox || el.dataset.open !== side) return;
+
+                // Signal banner
+                const sig   = data.signal || 'NEUTRAL';
+                const sigCol = sig === 'YES_LEAN' ? 'var(--c-green)' : sig === 'NO_LEAN' ? 'var(--c-red)' : 'var(--c-text2)';
+                const sigIcon = sig === 'YES_LEAN' ? '▲ YES lean' : sig === 'NO_LEAN' ? '▼ NO lean' : '→ Neutral';
+                const conf   = data.confidence ? ` · ${data.confidence}% confidence` : '';
+                sigBox.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                        <span style="font-size:13px;font-weight:700;color:${sigCol}">${sigIcon}</span>
+                        <span style="font-size:10px;color:var(--c-text3);font-family:'JetBrains Mono',monospace">${conf}</span>
+                    </div>
+                    ${data.verdict ? `<p style="font-size:12px;color:var(--c-text1);margin:0 0 4px">${data.verdict}</p>` : ''}
+                    ${data.edge    ? `<p style="font-size:11px;color:var(--c-text2);margin:0">${data.edge}</p>`           : ''}`;
+
+                // Live headlines
+                if (data.headlines && data.headlines.length) {
+                    hdlBox.innerHTML = `
+                        <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--c-text3);margin-bottom:6px;margin-top:10px;padding-top:10px;border-top:1px solid var(--c-border)">Live News</div>
+                        ${data.headlines.map(h => `
+                        <a href="${h.link}" target="_blank" rel="noopener"
+                           style="display:block;padding:4px 0;color:var(--c-text2);text-decoration:none;font-size:12px;line-height:1.4;transition:color .1s"
                            onmouseover="this.style.color='var(--c-text1)'" onmouseout="this.style.color='var(--c-text2)'">
-                            ${it.title}${it.source ? ` <span style="color:var(--c-text3);font-size:10px">· ${it.source}</span>` : ''}
+                            ${h.title}${h.source ? `<span style="color:var(--c-text3);font-size:10px"> · ${h.source}</span>` : ''}
                         </a>`).join('')}`;
-                } else {
-                    box.innerHTML = '<span style="font-size:11px;color:var(--c-text3)">No recent headlines found for this subject.</span>';
                 }
             } catch (_) {
-                const box = document.getElementById('intel-' + safe);
-                if (box) box.innerHTML = '<span style="font-size:11px;color:var(--c-text3)">Live news unavailable right now.</span>';
+                const sigBox = document.getElementById('signal-' + safe);
+                if (sigBox) sigBox.innerHTML = '<span style="font-size:11px;color:var(--c-text3)">Signal unavailable — check back in a moment.</span>';
             }
         }
 
@@ -2287,13 +2306,8 @@
             ['g1','g2','g3','g4','g5','g6','g7'].forEach(renderAnnouncerPanel);
             renderGame1();
             renderGame2();
-            renderGame3();
-            renderIntel();
-            renderCalibration();
-            selectSport('nba');
-            switchTab('g1');
+            selectSport('kalshi');
             fetchGameBrief();
-            fetchKalshiBestPicks();
         };
     </script>
 </body>
