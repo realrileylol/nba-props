@@ -63,10 +63,12 @@ async function scanOpenEvents() {
 }
 
 // Events (with nested markets) for one series — guarantees we find live game
-// events even when they're beyond the events-scan pagination window
+// events even when they're beyond the events-scan pagination window.
+// status=open here too, otherwise past (settled) games come back.
 async function fetchSeriesEvents(seriesTicker) {
     const qs = new URLSearchParams({
         limit: '10',
+        status: 'open',
         series_ticker: seriesTicker,
         with_nested_markets: 'true',
     });
@@ -80,16 +82,22 @@ function toAmericanOdds(p) {
     return f >= 0.5 ? Math.round(-(f / (1 - f)) * 100) : Math.round(((1 - f) / f) * 100);
 }
 
+function validPct(p) { return p != null && p > 0 && p < 100 ? p : null; }
+
 function shapeMarket(m) {
+    // Live ask price first; fall back to last traded price so pre-open
+    // markets still show odds instead of "—"
+    const yesPct = validPct(m.yes_ask) ?? validPct(m.last_price);
+    const noPct  = validPct(m.no_ask)  ?? (yesPct != null ? 100 - yesPct : null);
     return {
         ticker:       m.ticker,
         title:        m.yes_sub_title || m.subtitle || m.title || m.ticker,
         subtitle:     null,
         status:       m.status || null,          // 'open' | 'unopened' | ...
-        yesOdds:      toAmericanOdds(m.yes_ask ?? null),
-        noOdds:       toAmericanOdds(m.no_ask  ?? null),
-        yesPct:       m.yes_ask ?? null,
-        noPct:        m.no_ask  ?? null,
+        yesOdds:      toAmericanOdds(yesPct),
+        noOdds:       toAmericanOdds(noPct),
+        yesPct,
+        noPct,
         volume:       m.volume        || 0,
         openInterest: m.open_interest || 0,
         closeTime:    m.close_time    || null,
@@ -97,17 +105,23 @@ function shapeMarket(m) {
 }
 
 function shapeEvent(event, rawMarkets) {
-    const usable = (rawMarkets || []).filter(m => m.status !== 'settled' && m.status !== 'closed');
+    const now = Date.now();
+    const usable = (rawMarkets || []).filter(m =>
+        m.status !== 'settled' && m.status !== 'closed' && m.status !== 'finalized' &&
+        (!m.close_time || new Date(m.close_time).getTime() > now));
     const markets = usable.map(shapeMarket).sort((a, b) => {
         const ao = a.status === 'open' ? 0 : 1;
         const bo = b.status === 'open' ? 0 : 1;
         return ao - bo || (b.volume || 0) - (a.volume || 0);
     });
     if (!markets.length) return null;
+    const closeTime = event.close_time || markets[0].closeTime || null;
+    // Drop events that already closed — nothing left to bet on
+    if (closeTime && new Date(closeTime).getTime() <= now) return null;
     return {
         eventTicker: event.event_ticker,
         title:       event.title,
-        closeTime:   event.close_time || markets[0].closeTime || null,
+        closeTime,
         total:       markets.length,
         markets:     markets.slice(0, 40),
     };
