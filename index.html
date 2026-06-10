@@ -1051,6 +1051,8 @@
 
         // ── League tab switcher ──────────────────────────────────────────────────
 
+        const LEAGUE_LIVE = new Set(['world-cup']);
+
         function selectLeague(league) {
             LEAGUES.forEach(l => {
                 const btn = document.getElementById('ltab-' + l);
@@ -1063,10 +1065,24 @@
                     btn.classList.add('bg-slate-900','text-slate-500');
                 }
             });
-            if (currentLeague !== league) {
-                currentLeague = league;
-                fetchSoccerData(league);
+            currentLeague = league;
+            if (!LEAGUE_LIVE.has(league)) {
+                const labels = {
+                    'premier-league': 'Premier League',
+                    'la-liga': 'La Liga',
+                    'bundesliga': 'Bundesliga',
+                    'serie-a': 'Serie A',
+                    'ligue-1': 'Ligue 1',
+                    'champions-league': 'Champions League',
+                };
+                document.getElementById('soccer-pane').innerHTML = `
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg px-4 py-14 text-center">
+                        <p class="text-sm font-semibold text-slate-300 mb-1">${labels[league] || league} — Coming Soon</p>
+                        <p class="text-xs text-slate-600 mt-1">Data integration for this league is in progress.<br>Check back for live scores and predictions.</p>
+                    </div>`;
+                return;
             }
+            fetchSoccerData(league);
         }
 
         // ── API fetch ────────────────────────────────────────────────────────────
@@ -1503,21 +1519,26 @@
             }
         }
 
+        // ── Mentions navigation state ──────────────────────────────────────────────
+        let _mentionsCategories = [];
+        let _activeMentionsCat  = null;
+        let _openEventTicker    = null;
+
         function renderMentions({ categories, total, error, fetchedAt, debug }) {
             const pane = document.getElementById('kalshi-mentions-pane');
             const meta = document.getElementById('kalshi-mentions-meta');
 
             if (error) {
                 if (pane) pane.innerHTML = `
-                    <div class="bg-slate-900 border border-amber-900/40 rounded-xl p-5 text-center">
-                        <p class="text-amber-400 text-sm font-bold mb-1">⚠ Kalshi Not Connected</p>
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg p-5">
+                        <p class="text-sm font-semibold text-slate-300 mb-1">Kalshi Not Connected</p>
                         <p class="text-slate-500 text-xs leading-relaxed mb-4">${error}</p>
-                        <div class="bg-slate-800 rounded-lg p-3 text-left text-[11px] text-slate-400 space-y-1">
-                            <p class="font-bold text-slate-300">Setup (2 min):</p>
-                            <p>1. <span class="text-amber-400">kalshi.com → Settings → API → Generate key</span></p>
+                        <div class="border border-slate-800 rounded-md p-3 text-left text-[11px] text-slate-400 space-y-1.5">
+                            <p class="font-semibold text-slate-300">Setup:</p>
+                            <p>1. kalshi.com → Settings → API → Generate key</p>
                             <p>2. Vercel → Project Settings → Environment Variables</p>
-                            <p>3. Add <span class="font-mono text-amber-400">KALSHI_API_KEY = &lt;your-key&gt;</span></p>
-                            <p>4. Redeploy &amp; refresh</p>
+                            <p>3. Add <span class="font-mono text-indigo-400">KALSHI_API_KEY = &lt;your-key&gt;</span></p>
+                            <p>4. Redeploy and refresh</p>
                         </div>
                     </div>`;
                 return;
@@ -1533,39 +1554,71 @@
                 )
             );
 
-            if (categories && categories.length) {
-                pane.innerHTML = categories.map(cat => `
-                    <div class="mb-8">
-                        <div class="flex items-center gap-2.5 px-1 mb-3">
-                            <span class="w-0.5 h-3.5 bg-indigo-500 rounded-full"></span>
-                            <h3 class="text-[11px] font-semibold text-slate-300 uppercase tracking-widest">${cat.label}</h3>
-                            <span class="text-[10px] text-slate-600 font-mono">${cat.events.length} event${cat.events.length !== 1 ? 's' : ''}</span>
-                        </div>
-                        <div class="space-y-3">
-                            ${cat.events.map(event => `
-                                <div class="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden">
-                                    <div class="flex items-center justify-between px-4 py-3 bg-slate-800/30 border-b border-slate-800">
-                                        <div class="min-w-0 flex-1">
-                                            <p class="text-sm font-semibold text-white leading-snug">${event.title}</p>
-                                            ${event.closeTime ? `<p class="text-[10px] text-slate-500 mt-0.5 font-mono">${fmtCloseTime(event.closeTime)}</p>` : ''}
-                                        </div>
-                                        <span class="text-[10px] text-slate-500 shrink-0 ml-4 font-mono">${event.total} market${event.total !== 1 ? 's' : ''}</span>
-                                    </div>
-                                    ${(event.markets || []).map(m => kalshiRow(m)).join('')}
-                                </div>
-                            `).join('')}
-                        </div>
-                    </div>`).join('');
-            } else {
+            if (!categories || !categories.length) {
                 const dbg = debug ? `series: ${debug.mentionsSeries} · scanned: ${debug.scannedEvents} · with markets: ${debug.eventsWithMarkets}` : '';
                 pane.innerHTML = `
                     <div class="bg-slate-900 border border-slate-800 rounded-lg px-4 py-12 text-center">
                         <p class="text-slate-400 text-sm font-medium">No open mentions markets right now</p>
                         <p class="text-slate-600 text-xs mt-1">Mentions markets open shortly before each broadcast — check back near game time.</p>
-                        ${dbg ? `<p class="text-slate-700 text-[10px] mt-2 font-mono">${dbg}</p>` : ''}
+                        ${dbg ? `<p class="text-slate-700 text-[10px] mt-3 font-mono">${dbg}</p>` : ''}
                         <button onclick="fetchMentions(true)" class="mt-4 px-4 py-2 border border-slate-700 hover:border-slate-500 rounded-md text-sm text-slate-300 font-medium transition-colors">Refresh</button>
                     </div>`;
+                return;
             }
+
+            _mentionsCategories = categories;
+            _openEventTicker    = null;
+            selectMentionsCategory(categories[0].id);
+        }
+
+        function selectMentionsCategory(catId) {
+            _activeMentionsCat  = catId;
+            _openEventTicker    = null;
+            const pane = document.getElementById('kalshi-mentions-pane');
+            if (!pane) return;
+
+            const cat = _mentionsCategories.find(c => c.id === catId);
+            if (!cat) return;
+
+            // Category tab bar
+            const tabs = _mentionsCategories.map(c => `
+                <button onclick="selectMentionsCategory('${c.id}')"
+                    class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${c.id === catId
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-200'} border border-transparent">
+                    ${c.label}
+                    <span class="ml-1 text-[10px] ${c.id === catId ? 'text-indigo-200' : 'text-slate-600'}">${c.events.length}</span>
+                </button>`).join('');
+
+            // Event list (accordion)
+            const eventRows = cat.events.map(event => {
+                const isOpen = _openEventTicker === event.eventTicker;
+                const closeTxt = event.closeTime ? fmtCloseTime(event.closeTime) : null;
+                return `
+                <div class="border border-slate-800 rounded-lg overflow-hidden">
+                    <button onclick="toggleMentionsEvent('${event.eventTicker}')"
+                        class="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-800/40 transition-colors ${isOpen ? 'bg-slate-800/30 border-b border-slate-800' : 'bg-slate-900'}">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-slate-100 leading-snug">${event.title}</p>
+                            <div class="flex items-center gap-3 mt-1">
+                                ${closeTxt ? `<span class="text-[10px] text-slate-500 font-mono">${closeTxt}</span>` : ''}
+                                <span class="text-[10px] text-slate-600 font-mono">${event.total} market${event.total !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                        <span class="text-slate-500 text-sm transition-transform duration-150 ${isOpen ? 'rotate-90' : ''}">›</span>
+                    </button>
+                    ${isOpen ? `<div class="divide-y divide-slate-800/50">${(event.markets || []).map(m => kalshiRow(m)).join('')}</div>` : ''}
+                </div>`;
+            }).join('');
+
+            pane.innerHTML = `
+                <div class="flex flex-wrap gap-2 mb-5">${tabs}</div>
+                <div class="space-y-2">${eventRows}</div>`;
+        }
+
+        function toggleMentionsEvent(ticker) {
+            _openEventTicker = (_openEventTicker === ticker) ? null : ticker;
+            selectMentionsCategory(_activeMentionsCat);
         }
 
         // Kalshi-style compact market row
