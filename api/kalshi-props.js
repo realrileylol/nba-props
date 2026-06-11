@@ -226,7 +226,6 @@ module.exports = async (req, res) => {
             debug: {
                 mentionsSeries:    mentionsSeries.length,
                 openEventsScanned: openEvents.length,
-                usedCategoryFilter: !!(cat?.events?.length),
                 mentionEvents:     mentionEvents.length,
                 eventsFetched:     toFetch.length,
                 withMarkets:       categories.reduce((s, c) => s + c.events.length, 0),
