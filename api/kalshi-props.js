@@ -1,15 +1,9 @@
-// Kalshi Mentions
+// Kalshi Mentions — new architecture (events endpoint bypassed entirely)
 //
-// What works (confirmed): paginated open-events scan returns mentions events fine.
-// What broke: per-series fetches return empty (Kalshi likely ignores series_ticker
-// on the events endpoint or requires different params). Back to the scan.
-//
-// Architecture:
-//   Phase 1 (parallel): series list + open-events scan (no nested markets — fast)
-//   Phase 2:            /markets?event_ticker=X for top 8 events — always has prices
-//   Cache:              30s warm-instance cache; stale fallback on error/empty
-//
-// Vercel 10s budget: ~3s scan + ~2s market fetches = ~5s. Plenty of margin.
+// Phase 1: GET /series/?category=Mentions  → 367 series (confirmed working)
+// Phase 2: GET /markets?series_ticker=X   → live markets per series
+// Two buckets returned: sports / political
+// Cache: 30s warm-instance; stale fallback on error/empty
 
 const KALSHI_BASE = 'https://api.elections.kalshi.com/trade-api/v2';
 
@@ -30,44 +24,13 @@ async function getJSON(url, timeoutMs) {
 }
 
 async function fetchMentionsSeries() {
-    const d = await getJSON(`${KALSHI_BASE}/series/?category=Mentions`, 4000);
+    const d = await getJSON(`${KALSHI_BASE}/series/?category=Mentions`, 5000);
     return d?.series || [];
 }
 
-// Scan open events WITHOUT nested markets.
-// Strategy: try category=Mentions first (returns only mentions events if Kalshi
-// supports it); if that yields nothing, fall back to a broad multi-page scan.
-async function scanOpenEvents() {
-    // Attempt 1: category filter — fast and precise if supported
-    const cat = await getJSON(
-        `${KALSHI_BASE}/events?status=open&category=Mentions&limit=200`,
-        4000
-    );
-    if (cat?.events?.length) return cat.events;
-
-    // Attempt 2: paginated broad scan — get as many pages as time allows
-    const all = [];
-    let cursor = null;
-    const deadline = Date.now() + 5500;
-    for (let page = 0; page < 8 && Date.now() < deadline - 500; page++) {
-        const qs = new URLSearchParams({ status: 'open', limit: '200' });
-        if (cursor) qs.set('cursor', cursor);
-        const d = await getJSON(
-            `${KALSHI_BASE}/events?${qs}`,
-            Math.max(1000, deadline - Date.now())
-        );
-        if (!d) break;
-        all.push(...(d.events || []));
-        cursor = d.cursor;
-        if (!cursor || !(d.events || []).length) break;
-    }
-    return all;
-}
-
-// /markets always returns real price fields (unlike nested market format)
-async function fetchEventMarkets(eventTicker) {
-    const qs = new URLSearchParams({ limit: '60', event_ticker: eventTicker });
-    const d = await getJSON(`${KALSHI_BASE}/markets?${qs}`, 2500);
+async function fetchSeriesMarkets(seriesTicker) {
+    const qs = new URLSearchParams({ series_ticker: seriesTicker, status: 'open', limit: '20' });
+    const d = await getJSON(`${KALSHI_BASE}/markets?${qs}`, 3000);
     return d?.markets || [];
 }
 
@@ -99,9 +62,6 @@ function categoryForTag(tag) {
     return 'other';
 }
 
-const TAG_ORDER = ['NBA','MLB','NHL','NFL','WNBA','Soccer','Golf','Tennis','Racing','Combat','Sports','Trump','Press','Politics','Other'];
-function tagPriority(tag) { const i = TAG_ORDER.indexOf(tag); return i === -1 ? 99 : i; }
-
 function toAmericanOdds(p) {
     if (p == null || p <= 0 || p >= 100) return null;
     const f = p / 100;
@@ -125,7 +85,7 @@ function shapeMarket(m) {
     };
 }
 
-// 30s warm-instance cache — rapid refreshes never re-hit Kalshi
+// 30s warm-instance cache
 let _cache = { data: null, ts: 0 };
 const CACHE_MS = 30_000;
 
@@ -134,112 +94,95 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
 
     if (!process.env.KALSHI_API_KEY) {
-        return res.status(200).json({ categories: [], total: 0,
+        return res.status(200).json({ sports: [], political: [], total: 0,
             error: 'KALSHI_API_KEY not set', fetchedAt: new Date().toISOString() });
     }
 
-    // Serve warm cache — no Kalshi hit needed
     if (_cache.data && Date.now() - _cache.ts < CACHE_MS) {
         return res.status(200).json({ ..._cache.data, cached: true });
     }
 
     try {
-        // ── Phase 1: series list + event scan in parallel ─────────────────────
-        const [mentionsSeries, openEvents] = await Promise.all([
-            fetchMentionsSeries(),
-            scanOpenEvents(),
-        ]);
+        // Phase 1: all mentions series
+        const allSeries = await fetchMentionsSeries();
+        if (!allSeries.length) throw new Error('No mentions series returned from Kalshi');
 
-        // Case-insensitive ticker set — guards against Kalshi changing ticker casing
-        const mentionTickersLower = new Set(mentionsSeries.map(s => s.ticker?.toLowerCase()).filter(Boolean));
-        const tagBySeries = new Map(mentionsSeries.map(s => [s.ticker?.toLowerCase(), tagForSeries(s.ticker, s.title)]));
-
-        const now = Date.now();
-
-        // Filter scan results to mentions events only; drop already-closed events
-        const mentionEvents = openEvents.filter(e => {
-            const st = e.series_ticker?.toLowerCase();
-            return st && mentionTickersLower.has(st) &&
-                (!e.close_time || new Date(e.close_time).getTime() > now);
-        });
-
-        // Tag each event and sort by close time (soonest = most relevant today)
-        const tagged = mentionEvents.map(e => ({
-            ...e,
-            _tag: tagBySeries.get(e.series_ticker?.toLowerCase()) || 'Other',
-        })).sort((a, b) =>
-            new Date(a.close_time || 8.64e15) - new Date(b.close_time || 8.64e15)
-        );
-
-        // Take top 3 per tag across priority order, cap at 8 total market fetches
-        const seen = new Set();
-        const countByTag = {};
-        const toFetch = [];
-        for (const tag of TAG_ORDER) {
-            for (const e of tagged.filter(x => x._tag === tag)) {
-                if (seen.has(e.event_ticker)) continue;
-                if ((countByTag[tag] || 0) >= 3) continue;
-                seen.add(e.event_ticker);
-                countByTag[tag] = (countByTag[tag] || 0) + 1;
-                toFetch.push(e);
-                if (toFetch.length >= 8) break;
-            }
-            if (toFetch.length >= 8) break;
+        // Categorize into sports / political (skip other)
+        const sportsSeries = [], politicalSeries = [];
+        for (const s of allSeries) {
+            const tag = tagForSeries(s.ticker, s.title);
+            const cat = categoryForTag(tag);
+            if (cat === 'sports')    sportsSeries.push({ ...s, tag });
+            else if (cat === 'political') politicalSeries.push({ ...s, tag });
         }
 
-        // ── Phase 2: market prices in parallel (always has price fields) ──────
-        const marketGroups = await Promise.all(toFetch.map(e => fetchEventMarkets(e.event_ticker)));
+        // Pick top N — Kalshi returns series sorted by activity
+        const toFetch = [
+            ...sportsSeries.slice(0, 12),
+            ...politicalSeries.slice(0, 6),
+        ];
 
-        // Shape and bucket
-        const buckets = { sports: [], political: [], other: [] };
-        toFetch.forEach((event, i) => {
-            const rawMarkets = marketGroups[i] || [];
+        // Phase 2: fetch markets per series in parallel
+        const marketResults = await Promise.all(
+            toFetch.map(s => fetchSeriesMarkets(s.ticker))
+        );
+
+        const now = Date.now();
+        const sportsBucket = [], politicalBucket = [];
+
+        toFetch.forEach((series, i) => {
+            const rawMarkets = marketResults[i] || [];
             const usable = rawMarkets.filter(m =>
                 m.status !== 'settled' && m.status !== 'closed' && m.status !== 'finalized' &&
                 (!m.close_time || new Date(m.close_time).getTime() > now));
-            const markets = usable.map(shapeMarket).sort((a, b) => {
-                const ao = a.status === 'open' ? 0 : 1;
-                const bo = b.status === 'open' ? 0 : 1;
-                return ao - bo || (b.volume || 0) - (a.volume || 0);
-            });
+            const markets = usable.map(shapeMarket)
+                .sort((a, b) => (b.volume || 0) - (a.volume || 0));
             if (!markets.length) return;
-            const closeTime = event.close_time || markets[0]?.closeTime || null;
-            if (closeTime && new Date(closeTime).getTime() <= now) return;
-            buckets[categoryForTag(event._tag)].push({
-                eventTicker: event.event_ticker,
-                title:       event.title,
-                tag:         event._tag,
-                closeTime,
-                total:       markets.length,
-                markets:     markets.slice(0, 40),
-            });
+
+            const earliestClose = markets.reduce((min, m) => {
+                if (!m.closeTime) return min;
+                const t = new Date(m.closeTime).getTime();
+                return (!min || t < min) ? t : min;
+            }, null);
+
+            const item = {
+                seriesTicker: series.ticker,
+                title:        series.title,
+                tag:          series.tag,
+                markets:      markets.slice(0, 20),
+                total:        markets.length,
+                earliestClose: earliestClose ? new Date(earliestClose).toISOString() : null,
+            };
+
+            if (categoryForTag(series.tag) === 'sports') sportsBucket.push(item);
+            else politicalBucket.push(item);
         });
 
-        const categories = [];
-        if (buckets.sports.length)    categories.push({ id: 'sports',    label: 'Sports',    events: buckets.sports });
-        if (buckets.political.length) categories.push({ id: 'political', label: 'Political', events: buckets.political });
-        if (buckets.other.length)     categories.push({ id: 'other',     label: 'All Other', events: buckets.other });
+        const total = sportsBucket.reduce((n, s) => n + s.markets.length, 0)
+                    + politicalBucket.reduce((n, s) => n + s.markets.length, 0);
 
-        const total = categories.reduce((s, c) => s + c.events.reduce((es, ev) => es + ev.markets.length, 0), 0);
         const payload = {
-            categories, total,
+            sports: sportsBucket,
+            political: politicalBucket,
+            total,
             debug: {
-                mentionsSeries:    mentionsSeries.length,
-                openEventsScanned: openEvents.length,
-                mentionEvents:     mentionEvents.length,
-                eventsFetched:     toFetch.length,
-                withMarkets:       categories.reduce((s, c) => s + c.events.length, 0),
+                seriesCount:          allSeries.length,
+                sportsSeries:         sportsSeries.length,
+                politicalSeries:      politicalSeries.length,
+                fetched:              toFetch.length,
+                sportsWithMarkets:    sportsBucket.length,
+                politicalWithMarkets: politicalBucket.length,
             },
             fetchedAt: new Date().toISOString(),
         };
 
-        // Cache on success; fall back to stale on empty (rate-limited)
         if (total > 0) _cache = { data: payload, ts: Date.now() };
         if (total === 0 && _cache.data) return res.status(200).json({ ..._cache.data, stale: true });
         return res.status(200).json(payload);
 
     } catch (err) {
         if (_cache.data) return res.status(200).json({ ..._cache.data, stale: true });
-        return res.status(200).json({ categories: [], total: 0, error: err.message, fetchedAt: new Date().toISOString() });
+        return res.status(200).json({ sports: [], political: [], total: 0,
+            error: err.message, fetchedAt: new Date().toISOString() });
     }
 };
