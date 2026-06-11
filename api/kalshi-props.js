@@ -34,17 +34,27 @@ async function fetchMentionsSeries() {
     return d?.series || [];
 }
 
-// Scan open events WITHOUT nested markets — small payloads, reliably fast
+// Scan open events WITHOUT nested markets.
+// Strategy: try category=Mentions first (returns only mentions events if Kalshi
+// supports it); if that yields nothing, fall back to a broad multi-page scan.
 async function scanOpenEvents() {
+    // Attempt 1: category filter — fast and precise if supported
+    const cat = await getJSON(
+        `${KALSHI_BASE}/events?status=open&category=Mentions&limit=200`,
+        4000
+    );
+    if (cat?.events?.length) return cat.events;
+
+    // Attempt 2: paginated broad scan — get as many pages as time allows
     const all = [];
     let cursor = null;
-    const deadline = Date.now() + 4000;
-    for (let page = 0; page < 6 && Date.now() < deadline - 400; page++) {
+    const deadline = Date.now() + 5500;
+    for (let page = 0; page < 8 && Date.now() < deadline - 500; page++) {
         const qs = new URLSearchParams({ status: 'open', limit: '200' });
         if (cursor) qs.set('cursor', cursor);
         const d = await getJSON(
             `${KALSHI_BASE}/events?${qs}`,
-            Math.max(800, deadline - Date.now())
+            Math.max(1000, deadline - Date.now())
         );
         if (!d) break;
         all.push(...(d.events || []));
@@ -140,21 +150,23 @@ module.exports = async (req, res) => {
             scanOpenEvents(),
         ]);
 
-        const mentionTickers = new Set(mentionsSeries.map(s => s.ticker).filter(Boolean));
-        const tagBySeries    = new Map(mentionsSeries.map(s => [s.ticker, tagForSeries(s.ticker, s.title)]));
+        // Case-insensitive ticker set — guards against Kalshi changing ticker casing
+        const mentionTickersLower = new Set(mentionsSeries.map(s => s.ticker?.toLowerCase()).filter(Boolean));
+        const tagBySeries = new Map(mentionsSeries.map(s => [s.ticker?.toLowerCase(), tagForSeries(s.ticker, s.title)]));
 
         const now = Date.now();
 
         // Filter scan results to mentions events only; drop already-closed events
-        const mentionEvents = openEvents.filter(e =>
-            e.series_ticker && mentionTickers.has(e.series_ticker) &&
-            (!e.close_time || new Date(e.close_time).getTime() > now)
-        );
+        const mentionEvents = openEvents.filter(e => {
+            const st = e.series_ticker?.toLowerCase();
+            return st && mentionTickersLower.has(st) &&
+                (!e.close_time || new Date(e.close_time).getTime() > now);
+        });
 
         // Tag each event and sort by close time (soonest = most relevant today)
         const tagged = mentionEvents.map(e => ({
             ...e,
-            _tag: tagBySeries.get(e.series_ticker) || 'Other',
+            _tag: tagBySeries.get(e.series_ticker?.toLowerCase()) || 'Other',
         })).sort((a, b) =>
             new Date(a.close_time || 8.64e15) - new Date(b.close_time || 8.64e15)
         );
@@ -214,6 +226,7 @@ module.exports = async (req, res) => {
             debug: {
                 mentionsSeries:    mentionsSeries.length,
                 openEventsScanned: openEvents.length,
+                usedCategoryFilter: !!(cat?.events?.length),
                 mentionEvents:     mentionEvents.length,
                 eventsFetched:     toFetch.length,
                 withMarkets:       categories.reduce((s, c) => s + c.events.length, 0),
